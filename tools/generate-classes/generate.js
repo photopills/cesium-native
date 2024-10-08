@@ -342,8 +342,9 @@ function generate(options, schema, writers) {
 
         ${thisConfig.extensionName ? `
         void ${name}JsonHandler::reset(CesiumJsonReader::IJsonHandler* pParentHandler, CesiumUtility::ExtensibleObject& o, const std::string_view& extensionName) {
+          std::string extensionKey(extensionName);
           std::any& value =
-              o.extensions.emplace(extensionName, ${namespace}::${name}())
+              o.extensions.emplace(extensionKey, ${namespace}::${name}())
                   .first->second;
           this->reset(
               pParentHandler,
