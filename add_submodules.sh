@@ -23,7 +23,7 @@ submodules=(
   "extern/libmorton https://github.com/Forceflow/libmorton.git"
   "extern/expected-lite https://github.com/martinmoene/expected-lite.git"
   "extern/libjpeg-turbo https://github.com/CesiumGS/libjpeg-turbo.git"
-  "extern/zlib https://github.com/madler/zlib.git"
+  "extern/zlib-ng https://github.com/zlib-ng/zlib-ng.git"
   "extern/meshoptimizer https://github.com/zeux/meshoptimizer.git"
   "extern/CSPRNG https://github.com/Duthomhas/CSPRNG.git"
 )
