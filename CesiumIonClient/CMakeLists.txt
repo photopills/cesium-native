@@ -35,6 +35,14 @@ target_include_directories(
         ${CMAKE_CURRENT_LIST_DIR}/include
 )
 
+# Germán: The original file links also with OpenSSL::Crypto, but we removed the dependency
+# but we had to keep the linkage with csprng
+
+if (NOT ${CMAKE_SYSTEM_NAME} MATCHES "WindowsStore")
+  target_link_libraries(CesiumIonClient PRIVATE csprng)
+endif()
+
+
 target_link_libraries(CesiumIonClient
     PUBLIC
         CesiumAsync
@@ -43,5 +51,4 @@ target_link_libraries(CesiumIonClient
         picosha2::picosha2
         modp_b64::modp_b64
         httplib::httplib
-        OpenSSL::Crypto
 )
