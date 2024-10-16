@@ -5,13 +5,17 @@
 #include <atomic>
 #include <cstdint>
 
-#ifndef NDEBUG
+// Germán: The original code uses NDEBUG but that causes problems at least in Xcode
+// If NDEBUG is not defined. The Cesium Native libraries are built in release and
+// the Xcode app is built in debug mode, so NDEBUG is not defined and it checks
+// the thread_id, while the libraries doesn't actually store it.
+#ifndef CESIUM_THREAD_NDEBUG
 #include <thread>
 #endif
 
 namespace CesiumUtility {
 
-#ifndef NDEBUG
+#ifndef CESIUM_THREAD_NDEBUG
 template <bool isThreadSafe> class ThreadIdHolder;
 
 template <> class ThreadIdHolder<false> {
@@ -46,7 +50,7 @@ template <> class ThreadIdHolder<true> {};
  */
 template <typename T, bool isThreadSafe = true>
 class ReferenceCounted
-#ifndef NDEBUG
+#ifndef CESIUM_THREAD_NDEBUG
     : public ThreadIdHolder<isThreadSafe>
 #endif
 {
@@ -60,7 +64,7 @@ public:
    * directly.
    */
   void addReference() const /*noexcept*/ {
-#ifndef NDEBUG
+#ifndef CESIUM_THREAD_NDEBUG
     if constexpr (!isThreadSafe) {
       CESIUM_ASSERT(std::this_thread::get_id() == this->_threadID);
     }
@@ -76,7 +80,7 @@ public:
    * directly.
    */
   void releaseReference() const /*noexcept*/ {
-#ifndef NDEBUG
+#ifndef CESIUM_THREAD_NDEBUG
     if constexpr (!isThreadSafe) {
       CESIUM_ASSERT(std::this_thread::get_id() == this->_threadID);
     }
