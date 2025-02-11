@@ -2,25 +2,73 @@
 
 #include "CesiumIonTilesetLoader.h"
 #include "LayerJsonTerrainLoader.h"
+#include "RasterOverlayUpsampler.h"
 #include "TileContentLoadInfo.h"
+#include "TilesetContentLoaderResult.h"
 #include "TilesetJsonLoader.h"
 
+#include <Cesium3DTilesSelection/BoundingVolume.h>
 #include <Cesium3DTilesSelection/IPrepareRendererResources.h>
+#include <Cesium3DTilesSelection/RasterMappedTo3DTile.h>
+#include <Cesium3DTilesSelection/RasterOverlayCollection.h>
+#include <Cesium3DTilesSelection/Tile.h>
+#include <Cesium3DTilesSelection/TileContent.h>
+#include <Cesium3DTilesSelection/TileLoadResult.h>
+#include <Cesium3DTilesSelection/TileRefine.h>
+#include <Cesium3DTilesSelection/TilesetContentLoader.h>
+#include <Cesium3DTilesSelection/TilesetExternals.h>
+#include <Cesium3DTilesSelection/TilesetLoadFailureDetails.h>
+#include <Cesium3DTilesSelection/TilesetOptions.h>
+#include <CesiumAsync/Future.h>
+#include <CesiumAsync/HttpHeaders.h>
+#include <CesiumAsync/IAssetAccessor.h>
 #include <CesiumAsync/IAssetRequest.h>
 #include <CesiumAsync/IAssetResponse.h>
+#include <CesiumAsync/SharedFuture.h>
+#include <CesiumGeometry/Axis.h>
+#include <CesiumGeometry/QuadtreeTileID.h>
+#include <CesiumGeospatial/BoundingRegion.h>
+#include <CesiumGeospatial/BoundingRegionWithLooseFittingHeights.h>
+#include <CesiumGeospatial/Cartographic.h>
+#include <CesiumGeospatial/Ellipsoid.h>
+#include <CesiumGeospatial/GlobeRectangle.h>
+#include <CesiumGeospatial/Projection.h>
+#include <CesiumGltf/Image.h>
 #include <CesiumGltfContent/GltfUtilities.h>
 #include <CesiumGltfReader/GltfReader.h>
 #include <CesiumRasterOverlays/RasterOverlay.h>
+#include <CesiumRasterOverlays/RasterOverlayDetails.h>
 #include <CesiumRasterOverlays/RasterOverlayTile.h>
 #include <CesiumRasterOverlays/RasterOverlayTileProvider.h>
 #include <CesiumRasterOverlays/RasterOverlayUtilities.h>
+#include <CesiumUtility/Assert.h>
 #include <CesiumUtility/IntrusivePointer.h>
-#include <CesiumUtility/Log.h>
+#include <CesiumUtility/Math.h>
+#include <CesiumUtility/Tracing.h>
 #include <CesiumUtility/joinToString.h>
 
+#include <fmt/format.h>
+#include <glm/ext/vector_double2.hpp>
 #include <rapidjson/document.h>
+#include <spdlog/spdlog.h>
 
-#include <chrono>
+#include <algorithm>
+#include <any>
+#include <cassert>
+#include <cstddef>
+#include <cstdint>
+#include <exception>
+#include <functional>
+#include <memory>
+#include <optional>
+#include <span>
+#include <stdexcept>
+#include <string>
+#include <string_view>
+#include <type_traits>
+#include <utility>
+#include <variant>
+#include <vector>
 
 using namespace CesiumGltfContent;
 using namespace CesiumRasterOverlays;
@@ -49,12 +97,15 @@ struct ContentKindSetter {
 
   void operator()(CesiumGltf::Model&& model) {
     for (CesiumGltf::Image& image : model.images) {
+      if (!image.pAsset)
+        continue;
+
       // If the image size hasn't been overridden, store the pixelData
       // size now. We'll be adding this number to our total memory usage soon,
       // and remove it when the tile is later unloaded, and we must use
       // the same size in each case.
-      if (image.cesium.sizeBytes < 0) {
-        image.cesium.sizeBytes = int64_t(image.cesium.pixelData.size());
+      if (image.pAsset->sizeBytes < 0) {
+        image.pAsset->sizeBytes = int64_t(image.pAsset->pixelData.size());
       }
     }
 
@@ -154,7 +205,8 @@ getTileBoundingRegionForUpsampling(const Tile& parent) {
           CesiumGeospatial::BoundingRegion(
               globeRectangle,
               details.boundingRegion.getMinimumHeight(),
-              details.boundingRegion.getMaximumHeight()),
+              details.boundingRegion.getMaximumHeight(),
+              getProjectionEllipsoid(projection)),
           center};
     }
   }
@@ -219,7 +271,7 @@ void createQuadtreeSubdividedChildren(
   parent.createChildTiles(std::move(children));
 
   // populate children metadata
-  gsl::span<Tile> childrenView = parent.getChildren();
+  std::span<Tile> childrenView = parent.getChildren();
   Tile& sw = childrenView[0];
   Tile& se = childrenView[1];
   Tile& nw = childrenView[2];
@@ -343,6 +395,11 @@ std::vector<CesiumGeospatial::Projection> mapOverlaysToTile(
   return projections;
 }
 
+// Really, these two methods are risky and could easily result in bugs, but
+// they're private methods used only in this class, so it's easier to just tell
+// clang-tidy to ignore them.
+
+// NOLINTBEGIN(bugprone-return-const-ref-from-parameter)
 const BoundingVolume& getEffectiveBoundingVolume(
     const BoundingVolume& tileBoundingVolume,
     const std::optional<BoundingVolume>& updatedTileBoundingVolume,
@@ -383,6 +440,7 @@ const BoundingVolume& getEffectiveContentBoundingVolume(
   // And finally the regular tile bounding volume.
   return tileBoundingVolume;
 }
+// NOLINTEND(bugprone-return-const-ref-from-parameter)
 
 void calcRasterOverlayDetailsInWorkerThread(
     TileLoadResult& result,
@@ -390,8 +448,8 @@ void calcRasterOverlayDetailsInWorkerThread(
     const TileContentLoadInfo& tileLoadInfo) {
   CesiumGltf::Model& model = std::get<CesiumGltf::Model>(result.contentKind);
 
-  // we will use the fittest bounding volume to calculate raster overlay details
-  // below
+  // we will use the best-fitting bounding volume to calculate raster overlay
+  // details below
   const BoundingVolume& contentBoundingVolume =
       getEffectiveContentBoundingVolume(
           tileLoadInfo.tileBoundingVolume,
@@ -562,9 +620,12 @@ postProcessContentInWorkerThread(
       tileLoadInfo.contentOptions.ktx2TranscodeTargets;
   gltfOptions.applyTextureTransform =
       tileLoadInfo.contentOptions.applyTextureTransform;
+  if (tileLoadInfo.pSharedAssetSystem) {
+    gltfOptions.pSharedAssetSystem = tileLoadInfo.pSharedAssetSystem;
+  }
 
   auto asyncSystem = tileLoadInfo.asyncSystem;
-  auto pAssetAccessor = tileLoadInfo.pAssetAccessor;
+  auto pAssetAccessor = result.pAssetAccessor;
   return CesiumGltfReader::GltfReader::resolveExternalData(
              asyncSystem,
              baseUrl,
@@ -599,19 +660,21 @@ postProcessContentInWorkerThread(
                 "Warning when resolving external gltf buffers from "
                 "{}:\n- {}",
                 result.pCompletedRequest->url(),
-                CesiumUtility::joinToString(gltfResult.errors, "\n- "));
+                CesiumUtility::joinToString(gltfResult.warnings, "\n- "));
           } else {
             SPDLOG_LOGGER_ERROR(
                 tileLoadInfo.pLogger,
                 "Warning resolving external glTF buffers:\n- {}",
-                CesiumUtility::joinToString(gltfResult.errors, "\n- "));
+                CesiumUtility::joinToString(gltfResult.warnings, "\n- "));
           }
         }
 
         if (!gltfResult.model) {
           return tileLoadInfo.asyncSystem.createResolvedFuture(
               TileLoadResultAndRenderResources{
-                  TileLoadResult::createFailedResult(nullptr),
+                  TileLoadResult::createFailedResult(
+                      result.pAssetAccessor,
+                      nullptr),
                   nullptr});
         }
 
@@ -642,11 +705,10 @@ TilesetContentManager::TilesetContentManager(
     const TilesetExternals& externals,
     const TilesetOptions& tilesetOptions,
     RasterOverlayCollection&& overlayCollection,
-    std::vector<CesiumAsync::IAssetAccessor::THeader>&& requestHeaders,
     std::unique_ptr<TilesetContentLoader>&& pLoader,
     std::unique_ptr<Tile>&& pRootTile)
     : _externals{externals},
-      _requestHeaders{std::move(requestHeaders)},
+      _requestHeaders{tilesetOptions.requestHeaders},
       _pLoader{std::move(pLoader)},
       _pRootTile{std::move(pRootTile)},
       _userCredit(
@@ -660,6 +722,7 @@ TilesetContentManager::TilesetContentManager(
       _tileLoadsInProgress{0},
       _loadedTilesCount{0},
       _tilesDataUsed{0},
+      _pSharedAssetSystem(externals.pSharedAssetSystem),
       _destructionCompletePromise{externals.asyncSystem.createPromise<void>()},
       _destructionCompleteFuture{
           this->_destructionCompletePromise.getFuture().share()},
@@ -675,7 +738,7 @@ TilesetContentManager::TilesetContentManager(
     RasterOverlayCollection&& overlayCollection,
     const std::string& url)
     : _externals{externals},
-      _requestHeaders{},
+      _requestHeaders{tilesetOptions.requestHeaders},
       _pLoader{},
       _pRootTile{},
       _userCredit(
@@ -689,6 +752,7 @@ TilesetContentManager::TilesetContentManager(
       _tileLoadsInProgress{0},
       _loadedTilesCount{0},
       _tilesDataUsed{0},
+      _pSharedAssetSystem(externals.pSharedAssetSystem),
       _destructionCompletePromise{externals.asyncSystem.createPromise<void>()},
       _destructionCompleteFuture{
           this->_destructionCompletePromise.getFuture().share()},
@@ -735,7 +799,7 @@ TilesetContentManager::TilesetContentManager(
               }
 
               // Parse Json response
-              gsl::span<const std::byte> tilesetJsonBinary = pResponse->data();
+              std::span<const std::byte> tilesetJsonBinary = pResponse->data();
               rapidjson::Document tilesetJson;
               tilesetJson.Parse(
                   reinterpret_cast<const char*>(tilesetJsonBinary.data()),
@@ -826,7 +890,7 @@ TilesetContentManager::TilesetContentManager(
     const std::string& ionAccessToken,
     const std::string& ionAssetEndpointUrl)
     : _externals{externals},
-      _requestHeaders{},
+      _requestHeaders{tilesetOptions.requestHeaders},
       _pLoader{},
       _pRootTile{},
       _userCredit(
@@ -840,6 +904,7 @@ TilesetContentManager::TilesetContentManager(
       _tileLoadsInProgress{0},
       _loadedTilesCount{0},
       _tilesDataUsed{0},
+      _pSharedAssetSystem(externals.pSharedAssetSystem),
       _destructionCompletePromise{externals.asyncSystem.createPromise<void>()},
       _destructionCompleteFuture{
           this->_destructionCompletePromise.getFuture().share()},
@@ -985,6 +1050,7 @@ void TilesetContentManager::loadTileContent(
       this->_externals.pAssetAccessor,
       this->_externals.pPrepareRendererResources,
       this->_externals.pLogger,
+      this->_pSharedAssetSystem,
       tilesetOptions.contentOptions,
       tile};
 
@@ -1227,6 +1293,11 @@ TilesetContentManager::getTilesetCredits() const noexcept {
   return this->_tilesetCredits;
 }
 
+const CesiumUtility::IntrusivePointer<TilesetSharedAssetSystem>&
+TilesetContentManager::getSharedAssetSystem() const noexcept {
+  return this->_pSharedAssetSystem;
+}
+
 int32_t TilesetContentManager::getNumberOfTilesLoading() const noexcept {
   return this->_tileLoadsInProgress;
 }
@@ -1319,7 +1390,7 @@ void TilesetContentManager::setTileContent(
     }
 
     if (result.updatedContentBoundingVolume) {
-      tile.setContentBoundingVolume(*result.updatedContentBoundingVolume);
+      tile.setContentBoundingVolume(result.updatedContentBoundingVolume);
     }
 
     auto& content = tile.getContent();

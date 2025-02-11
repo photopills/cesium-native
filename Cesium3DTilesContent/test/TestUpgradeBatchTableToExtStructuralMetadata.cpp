@@ -1,23 +1,49 @@
 #include "BatchTableToGltfStructuralMetadata.h"
 #include "ConvertTileToGltf.h"
 
-#include <CesiumAsync/AsyncSystem.h>
-#include <CesiumAsync/HttpHeaders.h>
+#include <Cesium3DTilesContent/GltfConverterResult.h>
+#include <CesiumGltf/Accessor.h>
+#include <CesiumGltf/Class.h>
+#include <CesiumGltf/ClassProperty.h>
 #include <CesiumGltf/ExtensionExtMeshFeatures.h>
 #include <CesiumGltf/ExtensionKhrDracoMeshCompression.h>
 #include <CesiumGltf/ExtensionModelExtStructuralMetadata.h>
+#include <CesiumGltf/FeatureId.h>
+#include <CesiumGltf/Mesh.h>
+#include <CesiumGltf/MeshPrimitive.h>
+#include <CesiumGltf/Model.h>
+#include <CesiumGltf/PropertyArrayView.h>
+#include <CesiumGltf/PropertyTable.h>
 #include <CesiumGltf/PropertyTablePropertyView.h>
 #include <CesiumGltf/PropertyTableView.h>
+#include <CesiumGltf/Schema.h>
+#include <CesiumGltfReader/GltfReader.h>
+#include <CesiumUtility/IntrusivePointer.h>
 #include <CesiumUtility/Math.h>
 
-#include <catch2/catch.hpp>
+#include <doctest/doctest.h>
+#include <glm/ext/vector_double3.hpp>
+#include <glm/ext/vector_float3.hpp>
 #include <rapidjson/document.h>
+#include <rapidjson/rapidjson.h>
 #include <spdlog/sinks/ringbuffer_sink.h>
 #include <spdlog/spdlog.h>
 
+#include <cstddef>
+#include <cstdint>
 #include <filesystem>
+#include <limits>
+#include <memory>
+#include <optional>
 #include <set>
+#include <span>
+#include <string>
+#include <string_view>
+#include <unordered_map>
+#include <utility>
+#include <vector>
 
+using namespace doctest;
 using namespace CesiumGltf;
 using namespace Cesium3DTilesContent;
 using namespace CesiumUtility;
@@ -169,14 +195,14 @@ static void createTestForNonArrayJson(
   auto errors = BatchTableToGltfStructuralMetadata::convertFromB3dm(
       featureTableJson,
       batchTableJson,
-      gsl::span<const std::byte>(),
+      std::span<const std::byte>(),
       model);
 
   const ExtensionModelExtStructuralMetadata* pMetadata =
       model.getExtension<ExtensionModelExtStructuralMetadata>();
   REQUIRE(pMetadata);
 
-  const std::optional<Schema> schema = pMetadata->schema;
+  const CesiumUtility::IntrusivePointer<Schema> schema = pMetadata->schema;
   REQUIRE(schema);
 
   const std::unordered_map<std::string, Class>& classes = schema->classes;
@@ -245,14 +271,14 @@ static void createTestForNonArrayJson(
   auto errors = BatchTableToGltfStructuralMetadata::convertFromB3dm(
       featureTableJson,
       batchTableJson,
-      gsl::span<const std::byte>(),
+      std::span<const std::byte>(),
       model);
 
   const ExtensionModelExtStructuralMetadata* pMetadata =
       model.getExtension<ExtensionModelExtStructuralMetadata>();
   REQUIRE(pMetadata);
 
-  const std::optional<Schema> schema = pMetadata->schema;
+  const CesiumUtility::IntrusivePointer<Schema> schema = pMetadata->schema;
   REQUIRE(schema);
 
   const std::unordered_map<std::string, Class>& classes = schema->classes;
@@ -325,14 +351,14 @@ static void createTestForArrayJson(
   auto errors = BatchTableToGltfStructuralMetadata::convertFromB3dm(
       featureTableJson,
       batchTableJson,
-      gsl::span<const std::byte>(),
+      std::span<const std::byte>(),
       model);
 
   const ExtensionModelExtStructuralMetadata* pMetadata =
       model.getExtension<ExtensionModelExtStructuralMetadata>();
   REQUIRE(pMetadata);
 
-  const std::optional<Schema>& schema = pMetadata->schema;
+  const CesiumUtility::IntrusivePointer<Schema>& schema = pMetadata->schema;
   REQUIRE(schema);
   REQUIRE(schema->classes.find("default") != schema->classes.end());
 
@@ -591,7 +617,7 @@ TEST_CASE("Convert binary B3DM batch table to EXT_structural_metadata") {
       model.getExtension<ExtensionModelExtStructuralMetadata>();
   REQUIRE(metadata);
 
-  std::optional<Schema> schema = metadata->schema;
+  CesiumUtility::IntrusivePointer<Schema> schema = metadata->schema;
   REQUIRE(schema);
 
   const std::unordered_map<std::string, Class>& classes = schema->classes;
@@ -1258,7 +1284,7 @@ TEST_CASE("Upgrade nested JSON metadata to string") {
       result.model->getExtension<ExtensionModelExtStructuralMetadata>();
   REQUIRE(pMetadata);
 
-  const std::optional<Schema>& schema = pMetadata->schema;
+  const CesiumUtility::IntrusivePointer<Schema>& schema = pMetadata->schema;
   REQUIRE(schema);
 
   const std::unordered_map<std::string, Class>& classes = schema->classes;
@@ -1343,14 +1369,14 @@ TEST_CASE("Upgrade JSON booleans to binary") {
   auto errors = BatchTableToGltfStructuralMetadata::convertFromB3dm(
       featureTableJson,
       batchTableJson,
-      gsl::span<const std::byte>(),
+      std::span<const std::byte>(),
       model);
 
   const ExtensionModelExtStructuralMetadata* pMetadata =
       model.getExtension<ExtensionModelExtStructuralMetadata>();
   REQUIRE(pMetadata);
 
-  const std::optional<Schema>& schema = pMetadata->schema;
+  const CesiumUtility::IntrusivePointer<Schema>& schema = pMetadata->schema;
   REQUIRE(schema);
 
   const std::unordered_map<std::string, Class>& classes = schema->classes;
@@ -1378,7 +1404,7 @@ TEST_CASE("Upgrade JSON booleans to binary") {
 }
 
 TEST_CASE("Upgrade fixed-length JSON arrays") {
-  SECTION("int8_t") {
+  SUBCASE("int8_t") {
     // clang-format off
     std::vector<std::vector<int8_t>> expected {
       {0, 1, 4, 1},
@@ -1396,7 +1422,7 @@ TEST_CASE("Upgrade fixed-length JSON arrays") {
         expected.size());
   }
 
-  SECTION("uint8_t") {
+  SUBCASE("uint8_t") {
     // clang-format off
     std::vector<std::vector<uint8_t>> expected {
       {0, 1, 4, 1, 223},
@@ -1414,7 +1440,7 @@ TEST_CASE("Upgrade fixed-length JSON arrays") {
         expected.size());
   }
 
-  SECTION("int16_t") {
+  SUBCASE("int16_t") {
     // clang-format off
      std::vector<std::vector<int16_t>> expected {
       {0, 1, 4, 4445},
@@ -1432,7 +1458,7 @@ TEST_CASE("Upgrade fixed-length JSON arrays") {
         expected.size());
   }
 
-  SECTION("uint16_t") {
+  SUBCASE("uint16_t") {
     // clang-format off
      std::vector<std::vector<uint16_t>> expected {
       {0, 1, 4, 65000},
@@ -1450,7 +1476,7 @@ TEST_CASE("Upgrade fixed-length JSON arrays") {
         expected.size());
   }
 
-  SECTION("int32_t") {
+  SUBCASE("int32_t") {
     // clang-format off
      std::vector<std::vector<int32_t>> expected {
       {0, 1, 4, 1},
@@ -1468,7 +1494,7 @@ TEST_CASE("Upgrade fixed-length JSON arrays") {
         expected.size());
   }
 
-  SECTION("uint32_t") {
+  SUBCASE("uint32_t") {
     // clang-format off
      std::vector<std::vector<uint32_t>> expected {
       {0, 1, 4, 1},
@@ -1486,7 +1512,7 @@ TEST_CASE("Upgrade fixed-length JSON arrays") {
         expected.size());
   }
 
-  SECTION("int64_t") {
+  SUBCASE("int64_t") {
     // The max positive number only requires uint32_t, but due to
     // the negative number, it is upgraded to int64_t.
     // clang-format off
@@ -1506,7 +1532,7 @@ TEST_CASE("Upgrade fixed-length JSON arrays") {
         expected.size());
   }
 
-  SECTION("uint64_t") {
+  SUBCASE("uint64_t") {
     // clang-format off
      std::vector<std::vector<uint64_t>> expected {
       {0, 1, 4, 1},
@@ -1524,7 +1550,7 @@ TEST_CASE("Upgrade fixed-length JSON arrays") {
         expected.size());
   }
 
-  SECTION("float") {
+  SUBCASE("float") {
     // clang-format off
      std::vector<std::vector<float>> expected {
       {0.122f, 1.1233f, 4.113f, 1.11f},
@@ -1542,7 +1568,7 @@ TEST_CASE("Upgrade fixed-length JSON arrays") {
         expected.size());
   }
 
-  SECTION("double") {
+  SUBCASE("double") {
     // clang-format off
      std::vector<std::vector<double>> expected {
       {0.122, 1.1233, 4.113, 1.11},
@@ -1560,7 +1586,7 @@ TEST_CASE("Upgrade fixed-length JSON arrays") {
         expected.size());
   }
 
-  SECTION("string") {
+  SUBCASE("string") {
     // clang-format off
      std::vector<std::vector<std::string>> expected{
       {"Test0", "Test1", "Test2", "Test4"},
@@ -1578,7 +1604,7 @@ TEST_CASE("Upgrade fixed-length JSON arrays") {
         expected.size());
   }
 
-  SECTION("Boolean") {
+  SUBCASE("Boolean") {
     // clang-format off
      std::vector<std::vector<bool>> expected{
       {true, true, false, true, false, true},
@@ -1598,7 +1624,7 @@ TEST_CASE("Upgrade fixed-length JSON arrays") {
 }
 
 TEST_CASE("Upgrade variable-length JSON arrays") {
-  SECTION("int8_t") {
+  SUBCASE("int8_t") {
     // clang-format off
     std::vector<std::vector<int8_t>> expected {
       {0, 1, 4},
@@ -1616,7 +1642,7 @@ TEST_CASE("Upgrade variable-length JSON arrays") {
         expected.size());
   }
 
-  SECTION("uint8_t") {
+  SUBCASE("uint8_t") {
     // clang-format off
     std::vector<std::vector<uint8_t>> expected {
       {0, 223},
@@ -1634,7 +1660,7 @@ TEST_CASE("Upgrade variable-length JSON arrays") {
         expected.size());
   }
 
-  SECTION("int16_t") {
+  SUBCASE("int16_t") {
     // clang-format off
     std::vector<std::vector<int16_t>> expected {
       {0, 1, 4, 4445, 12333},
@@ -1652,7 +1678,7 @@ TEST_CASE("Upgrade variable-length JSON arrays") {
         expected.size());
   }
 
-  SECTION("uint16_t") {
+  SUBCASE("uint16_t") {
     // clang-format off
     std::vector<std::vector<uint16_t>> expected {
       {0, 1},
@@ -1670,7 +1696,7 @@ TEST_CASE("Upgrade variable-length JSON arrays") {
         expected.size());
   }
 
-  SECTION("int32_t") {
+  SUBCASE("int32_t") {
     // clang-format off
     std::vector<std::vector<int32_t>> expected {
       {0, 1},
@@ -1688,7 +1714,7 @@ TEST_CASE("Upgrade variable-length JSON arrays") {
         expected.size());
   }
 
-  SECTION("uint32_t") {
+  SUBCASE("uint32_t") {
     // clang-format off
     std::vector<std::vector<uint32_t>> expected {
       {0, 1},
@@ -1706,7 +1732,7 @@ TEST_CASE("Upgrade variable-length JSON arrays") {
         expected.size());
   }
 
-  SECTION("int64_t") {
+  SUBCASE("int64_t") {
     // clang-format off
     std::vector<std::vector<int64_t>> expected {
       {0, 1, 4, 1},
@@ -1724,7 +1750,7 @@ TEST_CASE("Upgrade variable-length JSON arrays") {
         expected.size());
   }
 
-  SECTION("uint64_t") {
+  SUBCASE("uint64_t") {
     // clang-format off
     std::vector<std::vector<uint64_t>> expected {
       {1},
@@ -1742,7 +1768,7 @@ TEST_CASE("Upgrade variable-length JSON arrays") {
         expected.size());
   }
 
-  SECTION("float") {
+  SUBCASE("float") {
     // clang-format off
     std::vector<std::vector<float>> expected {
       {0.122f, 1.1233f},
@@ -1760,7 +1786,7 @@ TEST_CASE("Upgrade variable-length JSON arrays") {
         expected.size());
   }
 
-  SECTION("double") {
+  SUBCASE("double") {
     // clang-format off
     std::vector<std::vector<double>> expected {
       {0.122, 1.1233},
@@ -1778,7 +1804,7 @@ TEST_CASE("Upgrade variable-length JSON arrays") {
         expected.size());
   }
 
-  SECTION("string") {
+  SUBCASE("string") {
     // clang-format off
     std::vector<std::vector<std::string>> expected{
       {"This is Test", "Another Test"},
@@ -1796,7 +1822,7 @@ TEST_CASE("Upgrade variable-length JSON arrays") {
         expected.size());
   }
 
-  SECTION("Boolean") {
+  SUBCASE("Boolean") {
     // clang-format off
     std::vector<std::vector<bool>> expected{
       {true, true, false, true, false, false, true},
@@ -1817,7 +1843,7 @@ TEST_CASE("Upgrade variable-length JSON arrays") {
 }
 
 TEST_CASE("Upgrade JSON values") {
-  SECTION("Uint32") {
+  SUBCASE("Uint32") {
     // Even though the values are typed uint32, they are small enough to be
     // stored as int8s. Signed types are preferred over unsigned.
     std::vector<uint32_t> expected{32, 45, 21, 65, 78};
@@ -1828,7 +1854,7 @@ TEST_CASE("Upgrade JSON values") {
         expected.size());
   }
 
-  SECTION("Boolean") {
+  SUBCASE("Boolean") {
     std::vector<bool> expected{true, false, true, false, true, true, false};
     createTestForNonArrayJson(
         expected,
@@ -1837,7 +1863,7 @@ TEST_CASE("Upgrade JSON values") {
         expected.size());
   }
 
-  SECTION("String") {
+  SUBCASE("String") {
     std::vector<std::string> expected{"Test 0", "Test 1", "Test 2", "Test 3"};
     createTestForNonArrayJson<std::string, std::string_view>(
         expected,
@@ -1848,7 +1874,7 @@ TEST_CASE("Upgrade JSON values") {
 }
 
 TEST_CASE("Uses sentinel values for JSON null values") {
-  SECTION("Uint32 with sentinel value 0") {
+  SUBCASE("Uint32 with sentinel value 0") {
     // Even though the values are typed uint32, they are small enough to be
     // stored as int8s. Signed types are preferred over unsigned.
     std::vector<uint32_t> expected{32, 45, 0, 21, 0, 65, 78};
@@ -1860,7 +1886,7 @@ TEST_CASE("Uses sentinel values for JSON null values") {
         static_cast<int8_t>(0));
   }
 
-  SECTION("Int32 with sentinel value 0") {
+  SUBCASE("Int32 with sentinel value 0") {
     // Even though the values are typed int32, they are small enough to be
     // stored as int8s. Signed types are preferred over unsigned.
     std::vector<int32_t> expected{32, 45, -3, 0, 21, 0, -65, 78};
@@ -1872,7 +1898,7 @@ TEST_CASE("Uses sentinel values for JSON null values") {
         static_cast<int8_t>(0));
   }
 
-  SECTION("Int32 with sentinel value -1") {
+  SUBCASE("Int32 with sentinel value -1") {
     // Even though the values are typed int32, they are small enough to be
     // stored as int8s. Signed types are preferred over unsigned.
     std::vector<int32_t> expected{32, 45, -3, 0, 21, 0, -1, -65, 78};
@@ -1884,7 +1910,7 @@ TEST_CASE("Uses sentinel values for JSON null values") {
         static_cast<int8_t>(-1));
   }
 
-  SECTION("String with 'null'") {
+  SUBCASE("String with 'null'") {
     std::vector<std::string> expected{
         "Test 0",
         "Test 1",
@@ -1901,7 +1927,7 @@ TEST_CASE("Uses sentinel values for JSON null values") {
 }
 
 TEST_CASE("Defaults to string if no sentinel values are available") {
-  SECTION("Uint64") {
+  SUBCASE("Uint64") {
     Model model;
     std::vector<std::optional<uint64_t>> expected{
         32,
@@ -1945,14 +1971,14 @@ TEST_CASE("Defaults to string if no sentinel values are available") {
     auto errors = BatchTableToGltfStructuralMetadata::convertFromB3dm(
         featureTableJson,
         batchTableJson,
-        gsl::span<const std::byte>(),
+        std::span<const std::byte>(),
         model);
 
     const ExtensionModelExtStructuralMetadata* pMetadata =
         model.getExtension<ExtensionModelExtStructuralMetadata>();
     REQUIRE(pMetadata);
 
-    const std::optional<Schema> schema = pMetadata->schema;
+    const CesiumUtility::IntrusivePointer<Schema> schema = pMetadata->schema;
     REQUIRE(schema);
 
     const std::unordered_map<std::string, Class>& classes = schema->classes;
@@ -1995,7 +2021,7 @@ TEST_CASE("Defaults to string if no sentinel values are available") {
     }
   }
 
-  SECTION("Int32") {
+  SUBCASE("Int32") {
     Model model;
     std::vector<std::optional<int32_t>>
         expected{32, 45, 0, -1, std::nullopt, 0, 65, 78};
@@ -2031,14 +2057,14 @@ TEST_CASE("Defaults to string if no sentinel values are available") {
     auto errors = BatchTableToGltfStructuralMetadata::convertFromB3dm(
         featureTableJson,
         batchTableJson,
-        gsl::span<const std::byte>(),
+        std::span<const std::byte>(),
         model);
 
     const ExtensionModelExtStructuralMetadata* pMetadata =
         model.getExtension<ExtensionModelExtStructuralMetadata>();
     REQUIRE(pMetadata);
 
-    const std::optional<Schema> schema = pMetadata->schema;
+    const CesiumUtility::IntrusivePointer<Schema> schema = pMetadata->schema;
     REQUIRE(schema);
 
     const std::unordered_map<std::string, Class>& classes = schema->classes;
@@ -2083,7 +2109,7 @@ TEST_CASE("Defaults to string if no sentinel values are available") {
 }
 
 TEST_CASE("Cannot write past batch table length") {
-  SECTION("Uint32") {
+  SUBCASE("Uint32") {
     std::vector<uint32_t> expected{32, 45, 21, 65, 78, 20, 33, 12};
     createTestForNonArrayJson<uint32_t, int8_t>(
         expected,
@@ -2092,7 +2118,7 @@ TEST_CASE("Cannot write past batch table length") {
         4);
   }
 
-  SECTION("Boolean") {
+  SUBCASE("Boolean") {
     std::vector<bool> expected{true, false, true, false, true, true, false};
     createTestForNonArrayJson(
         expected,
@@ -2101,7 +2127,7 @@ TEST_CASE("Cannot write past batch table length") {
         4);
   }
 
-  SECTION("String") {
+  SUBCASE("String") {
     std::vector<std::string>
         expected{"Test 0", "Test 1", "Test 2", "Test 3", "Test 4"};
     createTestForNonArrayJson<std::string, std::string_view>(
@@ -2111,7 +2137,7 @@ TEST_CASE("Cannot write past batch table length") {
         3);
   }
 
-  SECTION("Fixed-length scalar array") {
+  SUBCASE("Fixed-length scalar array") {
     // clang-format off
     std::vector<std::vector<uint64_t>> expected {
       {0, 1, 4, 1},
@@ -2129,7 +2155,7 @@ TEST_CASE("Cannot write past batch table length") {
         2);
   }
 
-  SECTION("Fixed-length boolean array") {
+  SUBCASE("Fixed-length boolean array") {
     // clang-format off
     std::vector<std::vector<bool>> expected{
       {true, true, false},
@@ -2147,7 +2173,7 @@ TEST_CASE("Cannot write past batch table length") {
         2);
   }
 
-  SECTION("Fixed-length string array") {
+  SUBCASE("Fixed-length string array") {
     // clang-format off
     std::vector<std::vector<std::string>> expected{
       {"Test0", "Test1", "Test2", "Test4"},
@@ -2165,7 +2191,7 @@ TEST_CASE("Cannot write past batch table length") {
         2);
   }
 
-  SECTION("Variable-length number array") {
+  SUBCASE("Variable-length number array") {
     // clang-format off
       std::vector<std::vector<int32_t>> expected {
         {0, 1},
@@ -2183,7 +2209,7 @@ TEST_CASE("Cannot write past batch table length") {
         3);
   }
 
-  SECTION("Variable-length boolean array") {
+  SUBCASE("Variable-length boolean array") {
     // clang-format off
       std::vector<std::vector<bool>> expected{
         {true, true, false, true, false, false, true},
@@ -2202,7 +2228,7 @@ TEST_CASE("Cannot write past batch table length") {
         2);
   }
 
-  SECTION("Variable-length string array") {
+  SUBCASE("Variable-length string array") {
     // clang-format off
       std::vector<std::vector<std::string>> expected{
         {"This is Test", "Another Test"},
@@ -2279,7 +2305,7 @@ TEST_CASE("Converts \"Feature Classes\" 3DTILES_batch_table_hierarchy example "
   auto errors = BatchTableToGltfStructuralMetadata::convertFromB3dm(
       featureTableParsed,
       batchTableParsed,
-      gsl::span<const std::byte>(),
+      std::span<const std::byte>(),
       gltf);
 
   ExtensionModelExtStructuralMetadata* pExtension =
@@ -2427,7 +2453,7 @@ TEST_CASE("Omits value-less properties when converting "
   auto errors = BatchTableToGltfStructuralMetadata::convertFromB3dm(
       featureTableParsed,
       batchTableParsed,
-      gsl::span<const std::byte>(),
+      std::span<const std::byte>(),
       gltf);
 
   ExtensionModelExtStructuralMetadata* pExtension =
@@ -2524,7 +2550,7 @@ TEST_CASE(
   BatchTableToGltfStructuralMetadata::convertFromB3dm(
       featureTableParsed,
       batchTableParsed,
-      gsl::span<const std::byte>(),
+      std::span<const std::byte>(),
       gltf);
 
   ExtensionModelExtStructuralMetadata* pExtension =
@@ -2724,7 +2750,7 @@ TEST_CASE("3DTILES_batch_table_hierarchy with parentCounts is okay if all "
   BatchTableToGltfStructuralMetadata::convertFromB3dm(
       featureTableParsed,
       batchTableParsed,
-      gsl::span<const std::byte>(),
+      std::span<const std::byte>(),
       gltf);
 
   // There should not be any log messages about parentCounts, since they're
@@ -2816,7 +2842,7 @@ TEST_CASE("3DTILES_batch_table_hierarchy with parentCounts values != 1 is "
   auto errors = BatchTableToGltfStructuralMetadata::convertFromB3dm(
       featureTableParsed,
       batchTableParsed,
-      gsl::span<const std::byte>(),
+      std::span<const std::byte>(),
       gltf);
 
   // There should be a log message about parentCounts, and no properties.

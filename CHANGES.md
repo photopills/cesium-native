@@ -1,5 +1,158 @@
 # Change Log
 
+### ? - ?
+
+##### Breaking Changes :mega:
+
+- Removed `TilesetOptions::maximumSimultaneousSubtreeLoads` because it was unused.
+
+##### Additions :tada:
+
+- Added `convertPropertyComponentTypeToAccessorComponentType` to `PropertyType`.
+- Added support for `3DTILES_ellipsoid` in `Cesium3DTiles`, `Cesium3DTilesReader`, and `Cesium3DTilesWriter`.
+
+##### Fixes :wrench:
+
+- Fixed parsing URIs that have a scheme followed by `:` instead of `://`.
+
+### v0.44.2 - 2025-02-10
+
+##### Fixes :wrench:
+
+- Fixed a bug in `GltfUtilities::parseGltfCopyright` that could cause a crash when the copyright ends with a semicolon.
+
+### v0.44.1 - 2025-02-03
+
+##### Fixes :wrench:
+
+- Fixed a bug in `CesiumIonClient::Connection` that caused the `authorize` method to use an incorrect URL.
+
+### v0.44.0 - 2025-02-03
+
+##### Breaking Changes :mega:
+
+- Removed `Math::rotation`. Use `glm::rotation` from `<glm/gtx/quaternion.hpp>` instead.
+- Removed `Math::perpVector`. Use `glm::perp` from `<glm/gtx/perpendicular.hpp>` instead.
+- Using Cesium Native in non-cmake projects now requires manually defining `GLM_ENABLE_EXPERIMENTAL`.
+- cesium-native no longer uses the `GLM_FORCE_SIZE_T_LENGTH` option with the `glm` library
+- `CullingVolume` has been moved from the `Cesium3DTilesSelection` namespace to the `CesiumGeometry` namespace.
+
+##### Additions :tada:
+
+- Added `forEachTile`, `forEachContent`, `addExtensionUsed`, `addExtensionRequired`, `removeExtensionUsed`, `removeExtensionRequired`, `isExtensionUsed`, and `isExtensionRequired` to `Cesium3DTiles::Tileset`.
+- Added conversion of I3dm batch table metadata to `EXT_structural_metadata` and `EXT_instance_features` extensions.
+- Added `CesiumIonClient::Connection::geocode` method for making geocoding queries against the Cesium ion geocoder API.
+- Added `UrlTemplateRasterOverlay` for requesting raster tiles from services using a templated URL.
+- `upsampleGltfForRasterOverlays` is now compatible with meshes using TRIANGLE_STRIP, TRIANGLE_FAN, or non-indexed TRIANGLES primitives.
+- Added `requestHeaders` field to `TilesetOptions` to allow per-tileset request headers to be specified.
+
+##### Fixes :wrench:
+
+- Fixed a crash in `GltfWriter` that would happen when the `EXT_structural_metadata` `schema` property was null.
+- Fixed a bug in `SharedAssetDepot` that could cause assertion failures in debug builds, and could rarely cause premature deletion of shared assets even in release builds.
+- Fixed a bug that could cause `Tileset::sampleHeightMostDetailed` to return a height that is not the highest one when the sampled tileset contained multiple heights at the given location.
+- `LayerJsonTerrainLoader` will now log errors and warnings when failing to load a `.terrain` file referenced in the layer.json, instead of silently ignoring them.
+- URIs containing unicode characters are now supported.
+- Fixed a crash in `CullingVolume` when the camera was very far away from the globe.
+- Fixed a bug that prevented the `culture` parameter of the `BingMapsRasterOverlay` from having an effect.
+
+### v0.43.0 - 2025-01-02
+
+##### Breaking Changes :mega:
+
+- Removed unused types `JsonValueMissingKey` and `JsonValueNotRealValue` from `CesiumUtility`.
+
+##### Additions :tada:
+
+- Added `offset` getter to `AccessorView`.
+- Added `stride`, `offset`, and `data` getters to `AccessorWriter`.
+- Added `value_type` typedef to `AccessorWriter`.
+- Added `InstanceAttributeSemantics` to `CesiumGltf`.
+- Added `VertexAttributeSemantics::FEATURE_ID_n`.
+- Added a `const` version of `Tileset::forEachLoadedTile`.
+- Added `DebugTileStateDatabase`, which provides tools for debugging the tile selection algorithm using SQLite.
+- Added `CesiumAsync::SqliteHelper`, containing functions for working with SQLite.
+- Updates generated classes for `EXT_structural_metadata`. See https://github.com/CesiumGS/glTF/pull/71.
+
+##### Fixes :wrench:
+
+- Fixed a bug in `thenPassThrough` that caused a compiler error when given a value by r-value refrence.
+- Fixed a raster overlay bug that could cause unnecessary upsampling with failed or missing overlay tiles.
+- Fixed a bug in  `SubtreeFileReader::loadBinary` that prevented valid subtrees from loading if they did not contain binary data.
+- Fixed a bug in the `Tileset` selection algorithm that could cause detail to disappear during load in some cases.
+- Improved the "kicking" mechanism in the tileset selection algorithm. The new criteria allows holes in a `Tileset`, when they do occur, to be filled with loaded tiles more incrementally.
+- Fixed a bug in `SharedAssetDepot` that could lead to crashes and other undefined behavior when an asset in the depot outlived the depot itself.
+- Fixed a bug that could cause some rotations in an Instanced 3D Model (.i3dm) to be represented incorrectly.
+
+### v0.42.0 - 2024-12-02
+
+##### Breaking Changes :mega:
+
+- Cesium Native now requires C++20 and uses vcpkg `2024.11.16`.
+- Switched from `gsl::span` to `std::span` throughout the library and API. The GSL library has been removed.
+- The `BingMapsRasterOverlay` constructor no longer takes an `ellipsoid` parameter. Instead, it uses the ellipsoid specified in `RasterOverlayOptions`.
+- The `ellipsoid` field in `RasterOverlayOptions` is no longer a `std::optional`. Instead, it defaults to WGS84 directly.
+- Removed the `ellipsoid` field from `TileMapServiceRasterOverlayOptions`, `WebMapServiceRasterOverlayOptions`, and `WebMapTileServiceRasterOverlayOptions`. These overlays now use the ellipsoid in `RasterOverlayOptions` instead.
+- The `schema` property of `ExtensionModelExtStructuralMetadata` is now an `IntrusivePointer` instead of a `std::optional`.
+
+##### Additions :tada:
+
+- Added support for `EXT_accessor_additional_types` in `AccessorView`.
+- Added `EllipsoidTilesetLoader` that will generate a tileset by tessellating the surface of an ellipsoid, producing a simple globe tileset without any terrain features.
+- External schemas referenced by the `schemaUri` property in the `EXT_structural_metadata` glTF extension are now loaded automatically. Two models that reference the same external schema will share a single copy of it.
+- Added `getHeightSampler` method to `TilesetContentLoader`, allowing loaders to optionally provide a custom, more efficient means of querying heights using the `ITilesetHeightSampler` interface.
+- Added equality operator for `JsonValue`.
+- `TileLoadResult` now includes a `pAssetAccessor` that was used to retrieve the tile content and that should be used to retrieve any additional resources associated with the tile, such as external images.
+
+##### Fixes :wrench:
+
+- Updated the CMake install process to install the vcpkg-built Debug binaries in Debug builds. Previously the Release binaries were installed instead.
+- Fixed a crash that would occur for raster overlays attempting to dereference a null `CreditSystem`.
+- Fixed a bug where an empty `extensions` object would get written if an `ExtensibleObject` only had unregistered extensions.
+- Tightened the tolerance of `IntersectionTests::rayTriangleParametric`, allowing it to find intersections with smaller triangles.
+- Fixed a bug that could cause `GltfUtilities::intersectRayGltfModel` to crash when the model contains a primitive whose position accessor does not have min/max values.
+- `IonRasterOverlay` now passes its `RasterOverlayOptions` to the `BingMapsRasterOverlay` or `TileMapServiceRasterOverlay` that it creates internally.
+- Fixed a bug in `CachingAssetAccessor` that caused it to return cached request headers on a cache hit, rather than the headers included in the new request.
+- External resources (such as images) referenced from 3D Tiles content will no longer fail if a Cesium ion token refresh is necessary.
+- The Cesium ion token will now only be refreshed once when it expires. Previously, multiple refresh requests could be initiated at about the same time.
+- Fixed a bug in `SharedAssetDepot` that could lead to a crash with assets that fail to load.
+- Fixed a bug in `AccessorView` that could cause it to report the view as valid even when its `BufferView` had a negative `byteStride`.
+
+### v0.41.0 - 2024-11-01
+
+##### Breaking Changes :mega:
+
+- Renamed `CesiumUtility/Gunzip.h` to `CesiumUtility/Gzip.h`.
+- Renamed `ImageCesium` to `ImageAsset`.
+- The `cesium` field in `CesiumGltf::Image` is now named `pAsset` and is an `IntrusivePointer` to an `ImageAsset`.
+- The `image` field in `LoadedRasterOverlayImage` is now named `pImage` and is an `IntrusivePointer` to an `ImageAsset`.
+- Deprecated the `readImage` and `generateMipMaps` methods on `GltfReader`. These methods are now found on `ImageDecoder`.
+
+##### Additions :tada:
+
+- Added `CesiumUtility::gzip`.
+- Added `CesiumGeometry::Transforms::getUpAxisTransform` to get the transform that converts from one up axis to another.
+- Added `TilesetSharedAssetSystem` to `Cesium3DTilesSelection` and `GltfSharedAssetSystem` to `CesiumGltfReader`.
+- Added `SharedAsset` to `CesiumUtility` to serve as the base class for assets such as `ImageAsset`.
+- Added `SharedAssetDepot` to `CesiumAsync` for managing assets, such as images, that can be shared among multiple models or other objects.
+- Added `NetworkAssetDescriptor` and `NetworkImageAssetDescriptor`.
+- `ImageAsset` (formerly `ImageCesium`) is now an `ExtensibleObject`.
+- Added `VertexAttributeSemantics` to `CesiumGltf`.
+- Added `ImageDecoder` to `CesiumGltfReader`.
+- Added `DoublyLinkedListAdvanced` to `CesiumUtility`. It is equivalent to `DoublyLinkedList` except it allows the next and previous pointers to be in a base class of the node class.
+- Added `contains` method to `DoublyLinkedList` (and `DoublyLinkedListAdvanced`).
+- Added static `error` and `warning` methods to `ErrorList`, making it easy to create an instance with a single error or warning.
+- `ExtensibleObject::addExtension` now takes arguments that are passed through to the extension's constructor.
+- Added `Hash` to `CesiumUtility`.
+- Added `emplace` and `reset` methods to `IntrusivePointer`.
+- Added `Result<T>` and `ResultPointer<T>` classes to represent the result of an operation that might complete with warnings and errors.
+
+##### Fixes :wrench:
+
+- Fixed missing ellipsoid parameters that would lead to incorrect results when using non-WGS84 ellipsoids.
+- Fixed a bug in `AsyncSystem::all` where the resolved values of individual futures were copied instead of moved into the output array.
+- Improved the hash function for `QuadtreeTileID`.
+
 ### v0.40.1 - 2024-10-01
 
 ##### Fixes :wrench:

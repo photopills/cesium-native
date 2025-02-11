@@ -1,13 +1,12 @@
 #pragma once
 
-#include "Library.h"
-#include "RasterOverlay.h"
-
 #include <CesiumAsync/IAssetRequest.h>
 #include <CesiumGeometry/QuadtreeTilingScheme.h>
 #include <CesiumGeospatial/Ellipsoid.h>
 #include <CesiumGeospatial/GlobeRectangle.h>
 #include <CesiumGeospatial/Projection.h>
+#include <CesiumRasterOverlays/Library.h>
+#include <CesiumRasterOverlays/RasterOverlay.h>
 
 #include <memory>
 
@@ -62,11 +61,6 @@ struct WebMapServiceRasterOverlayOptions {
    * @brief Pixel height of image tiles.
    */
   int32_t tileHeight = 256;
-
-  /**
-   * @brief The ellipsoid used for this overlay.
-   */
-  std::optional<CesiumGeospatial::Ellipsoid> ellipsoid = std::nullopt;
 };
 
 /**

@@ -1,7 +1,16 @@
 #include <Cesium3DTilesContent/CmptToGltfConverter.h>
+#include <Cesium3DTilesContent/GltfConverterResult.h>
 #include <Cesium3DTilesContent/GltfConverters.h>
+#include <CesiumAsync/Future.h>
+#include <CesiumGltfReader/GltfReader.h>
 
-#include <spdlog/fmt/fmt.h>
+#include <fmt/format.h>
+
+#include <cstddef>
+#include <cstdint>
+#include <span>
+#include <utility>
+#include <vector>
 
 namespace Cesium3DTilesContent {
 namespace {
@@ -23,7 +32,7 @@ static_assert(sizeof(InnerHeader) == 12);
 } // namespace
 
 CesiumAsync::Future<GltfConverterResult> CmptToGltfConverter::convert(
-    const gsl::span<const std::byte>& cmptBinary,
+    const std::span<const std::byte>& cmptBinary,
     const CesiumGltfReader::GltfReaderOptions& options,
     const AssetFetcher& assetFetcher) {
   GltfConverterResult result;
@@ -73,7 +82,7 @@ CesiumAsync::Future<GltfConverterResult> CmptToGltfConverter::convert(
       break;
     }
 
-    const gsl::span<const std::byte> innerData(
+    const std::span<const std::byte> innerData(
         cmptBinary.data() + pos,
         pInner->byteLength);
 

@@ -1,7 +1,7 @@
 #pragma once
 
-#include "CesiumGeospatial/Ellipsoid.h"
-#include "RasterOverlay.h"
+#include <CesiumGeospatial/Ellipsoid.h>
+#include <CesiumRasterOverlays/RasterOverlay.h>
 
 namespace CesiumRasterOverlays {
 
@@ -32,9 +32,6 @@ public:
       const std::shared_ptr<spdlog::logger>& pLogger,
       CesiumUtility::IntrusivePointer<const RasterOverlay> pOwner)
       const override;
-
-private:
-  CesiumGeospatial::Ellipsoid _ellipsoid;
 };
 
 } // namespace CesiumRasterOverlays

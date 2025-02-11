@@ -1,22 +1,21 @@
 #pragma once
 
-#include "BoundingVolume.h"
-#include "Library.h"
-#include "RasterMappedTo3DTile.h"
-#include "TileContent.h"
-#include "TileID.h"
-#include "TileRefine.h"
-#include "TileSelectionState.h"
-
+#include <Cesium3DTilesSelection/BoundingVolume.h>
+#include <Cesium3DTilesSelection/Library.h>
+#include <Cesium3DTilesSelection/RasterMappedTo3DTile.h>
+#include <Cesium3DTilesSelection/TileContent.h>
+#include <Cesium3DTilesSelection/TileID.h>
+#include <Cesium3DTilesSelection/TileRefine.h>
+#include <Cesium3DTilesSelection/TileSelectionState.h>
 #include <CesiumUtility/DoublyLinkedList.h>
 
 #include <glm/common.hpp>
-#include <gsl/span>
 
 #include <atomic>
 #include <limits>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <vector>
 
@@ -80,7 +79,7 @@ enum class TileLoadState {
  * The actual hierarchy is represented with the {@link Tile::getParent}
  * and {@link Tile::getChildren} functions.
  *
- * The renderable content is provided as a {@link TileContentLoadResult}
+ * The renderable content is provided as a {@link TileContent}
  * from the {@link Tile::getContent} function.
  * The {@link Tile::getGeometricError} function returns the geometric
  * error of the representation of the renderable content of a tile.
@@ -111,6 +110,7 @@ public:
    * with this constructor.
    *
    * @param pLoader The {@link TilesetContentLoader} that is assiocated with this tile.
+   * @param externalContent External content that is associated with this tile.
    */
   Tile(
       TilesetContentLoader* pLoader,
@@ -122,6 +122,7 @@ public:
    * with this constructor.
    *
    * @param pLoader The {@link TilesetContentLoader} that is assiocated with this tile.
+   * @param emptyContent A content tag indicating that the tile has no content.
    */
   Tile(TilesetContentLoader* pLoader, TileEmptyContent emptyContent) noexcept;
 
@@ -178,13 +179,13 @@ public:
    *
    * @return The children of this tile.
    */
-  gsl::span<Tile> getChildren() noexcept {
-    return gsl::span<Tile>(this->_children);
+  std::span<Tile> getChildren() noexcept {
+    return std::span<Tile>(this->_children);
   }
 
   /** @copydoc Tile::getChildren() */
-  gsl::span<const Tile> getChildren() const noexcept {
-    return gsl::span<const Tile>(this->_children);
+  std::span<const Tile> getChildren() const noexcept {
+    return std::span<const Tile>(this->_children);
   }
 
   /**
@@ -274,14 +275,14 @@ public:
   /**
    * @brief Gets the tile's geometric error as if by calling
    * {@link getGeometricError}, except that if the error is smaller than
-   * {@link Math::Epsilon5} the returned geometric error is instead computed as
+   * {@link CesiumUtility::Math::Epsilon5} the returned geometric error is instead computed as
    * half of the parent tile's (non-zero) geometric error.
    *
    * This is useful for determining when to refine what would ordinarily be a
    * leaf tile, for example to attach more detailed raster overlays to it.
    *
    * If this tile and all of its ancestors have a geometric error less than
-   * {@link Math::Epsilon5}, returns {@link Math::Epsilon5}.
+   * {@link CesiumUtility::Math::Epsilon5}, returns {@link CesiumUtility::Math::Epsilon5}.
    *
    * @return The non-zero geometric error.
    */
@@ -447,11 +448,11 @@ public:
   }
 
   /**
-   * @brief get the content of the tile.
+   * @brief Get the content of the tile.
    */
   const TileContent& getContent() const noexcept { return _content; }
 
-  /** @copydoc Tile::getContent() */
+  /** @copydoc Tile::getContent() const */
   TileContent& getContent() noexcept { return _content; }
 
   /**

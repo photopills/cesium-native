@@ -1,17 +1,25 @@
-#include "CesiumGltfWriter/GltfWriter.h"
-
-#include <CesiumGltf/ExtensionKhrDracoMeshCompression.h>
+#include <CesiumGltf/Buffer.h>
 #include <CesiumGltfReader/GltfReader.h>
+#include <CesiumGltfWriter/GltfWriter.h>
+#include <CesiumJsonWriter/ExtensionWriterContext.h>
+#include <CesiumUtility/ExtensibleObject.h>
 
-#include <catch2/catch.hpp>
+#include <doctest/doctest.h>
 #include <rapidjson/document.h>
 
+#include <algorithm>
 #include <cctype>
+#include <cstddef>
+#include <cstdint>
+#include <limits>
+#include <span>
+#include <string>
+#include <vector>
 
 namespace {
 void check(const std::string& input, const std::string& expectedOutput) {
   CesiumGltfReader::GltfReader reader;
-  CesiumGltfReader::GltfReaderResult readResult = reader.readGltf(gsl::span(
+  CesiumGltfReader::GltfReaderResult readResult = reader.readGltf(std::span(
       reinterpret_cast<const std::byte*>(input.c_str()),
       input.size()));
   REQUIRE(readResult.errors.empty());
@@ -532,7 +540,7 @@ TEST_CASE("Writes glb") {
 
   CesiumGltfWriter::GltfWriter writer;
   CesiumGltfWriter::GltfWriterResult writeResult =
-      writer.writeGlb(model, gsl::span(bufferData));
+      writer.writeGlb(model, std::span(bufferData));
   const std::vector<std::byte>& glbBytes = writeResult.gltfBytes;
 
   REQUIRE(writeResult.errors.empty());
@@ -567,7 +575,7 @@ TEST_CASE("Writes glb with binaryChunkByteAlignment of 8") {
   options.binaryChunkByteAlignment = 4; // default
 
   CesiumGltfWriter::GltfWriterResult writeResult =
-      writer.writeGlb(model, gsl::span(bufferData), options);
+      writer.writeGlb(model, std::span(bufferData), options);
   const std::vector<std::byte>& glbBytesDefaultPadding = writeResult.gltfBytes;
 
   REQUIRE(writeResult.errors.empty());
@@ -576,7 +584,7 @@ TEST_CASE("Writes glb with binaryChunkByteAlignment of 8") {
   REQUIRE(glbBytesDefaultPadding.size() == 84);
 
   options.binaryChunkByteAlignment = 8;
-  writeResult = writer.writeGlb(model, gsl::span(bufferData), options);
+  writeResult = writer.writeGlb(model, std::span(bufferData), options);
   const std::vector<std::byte>& glbBytesExtraPadding = writeResult.gltfBytes;
 
   REQUIRE(writeResult.errors.empty());
@@ -605,13 +613,13 @@ TEST_CASE("Handles models with unregistered extension") {
   CesiumGltf::Model model;
   model.addExtension<ExtensionModelTest>();
 
-  SECTION("Reports a warning if the extension is enabled") {
+  SUBCASE("Reports a warning if the extension is enabled") {
     CesiumGltfWriter::GltfWriter writer;
     CesiumGltfWriter::GltfWriterResult result = writer.writeGltf(model);
     REQUIRE(!result.warnings.empty());
   }
 
-  SECTION("Does not report a warning if the extension is disabled") {
+  SUBCASE("Does not report a warning if the extension is disabled") {
     CesiumGltfWriter::GltfWriter writer;
     writer.getExtensions().setExtensionState(
         ExtensionModelTest::ExtensionName,

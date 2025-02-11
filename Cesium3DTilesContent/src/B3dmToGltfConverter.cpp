@@ -2,9 +2,20 @@
 
 #include <Cesium3DTilesContent/B3dmToGltfConverter.h>
 #include <Cesium3DTilesContent/BinaryToGltfConverter.h>
+#include <Cesium3DTilesContent/GltfConverterResult.h>
 #include <Cesium3DTilesContent/GltfConverters.h>
+#include <CesiumAsync/Future.h>
 #include <CesiumGltf/ExtensionCesiumRTC.h>
-#include <CesiumUtility/Log.h>
+#include <CesiumGltfReader/GltfReader.h>
+#include <CesiumUtility/Assert.h>
+
+#include <fmt/format.h>
+#include <rapidjson/document.h>
+
+#include <cstddef>
+#include <cstdint>
+#include <span>
+#include <utility>
 
 namespace Cesium3DTilesContent {
 namespace {
@@ -36,7 +47,7 @@ struct B3dmHeaderLegacy2 {
 };
 
 void parseB3dmHeader(
-    const gsl::span<const std::byte>& b3dmBinary,
+    const std::span<const std::byte>& b3dmBinary,
     B3dmHeader& header,
     uint32_t& headerLength,
     GltfConverterResult& result) {
@@ -113,7 +124,7 @@ void parseB3dmHeader(
 }
 
 CesiumAsync::Future<GltfConverterResult> convertB3dmContentToGltf(
-    const gsl::span<const std::byte>& b3dmBinary,
+    const std::span<const std::byte>& b3dmBinary,
     const B3dmHeader& header,
     uint32_t headerLength,
     const CesiumGltfReader::GltfReaderOptions& options,
@@ -132,14 +143,14 @@ CesiumAsync::Future<GltfConverterResult> convertB3dmContentToGltf(
     return assetFetcher.asyncSystem.createResolvedFuture(std::move(result));
   }
 
-  const gsl::span<const std::byte> glbData =
+  const std::span<const std::byte> glbData =
       b3dmBinary.subspan(glbStart, glbEnd - glbStart);
 
   return BinaryToGltfConverter::convert(glbData, options, assetFetcher);
 }
 
 rapidjson::Document parseFeatureTableJsonData(
-    const gsl::span<const std::byte>& featureTableJsonData,
+    const std::span<const std::byte>& featureTableJsonData,
     GltfConverterResult& result) {
   rapidjson::Document document;
   document.Parse(
@@ -158,6 +169,7 @@ rapidjson::Document parseFeatureTableJsonData(
   if (rtcIt != document.MemberEnd() && rtcIt->value.IsArray() &&
       rtcIt->value.Size() == 3 && rtcIt->value[0].IsNumber() &&
       rtcIt->value[1].IsNumber() && rtcIt->value[2].IsNumber()) {
+    CESIUM_ASSERT(result.model.has_value());
     // Add the RTC_CENTER value to the glTF as a CESIUM_RTC extension.
     rapidjson::Value& rtcValue = rtcIt->value;
     auto& cesiumRTC =
@@ -174,14 +186,14 @@ rapidjson::Document parseFeatureTableJsonData(
 }
 
 void convertB3dmMetadataToGltfStructuralMetadata(
-    const gsl::span<const std::byte>& b3dmBinary,
+    const std::span<const std::byte>& b3dmBinary,
     const B3dmHeader& header,
     uint32_t headerLength,
     GltfConverterResult& result) {
   if (result.model && header.featureTableJsonByteLength > 0) {
     CesiumGltf::Model& gltf = result.model.value();
 
-    const gsl::span<const std::byte> featureTableJsonData =
+    const std::span<const std::byte> featureTableJsonData =
         b3dmBinary.subspan(headerLength, header.featureTableJsonByteLength);
     rapidjson::Document featureTableJson =
         parseFeatureTableJsonData(featureTableJsonData, result);
@@ -193,10 +205,10 @@ void convertB3dmMetadataToGltfStructuralMetadata(
         header.batchTableBinaryByteLength + header.batchTableJsonByteLength;
 
     if (batchTableLength > 0) {
-      const gsl::span<const std::byte> batchTableJsonData = b3dmBinary.subspan(
+      const std::span<const std::byte> batchTableJsonData = b3dmBinary.subspan(
           static_cast<size_t>(batchTableStart),
           header.batchTableJsonByteLength);
-      const gsl::span<const std::byte> batchTableBinaryData =
+      const std::span<const std::byte> batchTableBinaryData =
           b3dmBinary.subspan(
               static_cast<size_t>(
                   batchTableStart + header.batchTableJsonByteLength),
@@ -228,7 +240,7 @@ void convertB3dmMetadataToGltfStructuralMetadata(
 } // namespace
 
 CesiumAsync::Future<GltfConverterResult> B3dmToGltfConverter::convert(
-    const gsl::span<const std::byte>& b3dmBinary,
+    const std::span<const std::byte>& b3dmBinary,
     const CesiumGltfReader::GltfReaderOptions& options,
     const AssetFetcher& assetFetcher) {
   GltfConverterResult result;
