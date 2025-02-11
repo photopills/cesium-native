@@ -4,6 +4,8 @@ if (NOT USE_CESIUM_OLD_BUILD)
 
 cmake_minimum_required(VERSION 3.15)
 
+set(CESIUM_TESTS_ENABLED False)
+
 if (NOT VCPKG_LIBRARY_LINKAGE)
     set(VCPKG_LIBRARY_LINKAGE static)
 endif()
