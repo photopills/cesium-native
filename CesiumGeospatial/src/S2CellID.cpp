@@ -43,12 +43,9 @@ using namespace CesiumGeospatial;
 using GoogleS2CellID = S2CellId;
 
 /*static*/ S2CellID S2CellID::fromToken(const std::string_view& token) {
-  //  Cesium uses this code now, but we have a compile error when using the old CMakeLists.txt
-  //  so, keep using the old code
-  //  return S2CellID(
-  //      GoogleS2CellID::FromToken(absl::string_view(token.data(), token.size()))
-  //          .id());
-  return S2CellID(GoogleS2CellID::FromToken(token.data(), token.size()).id());
+  return S2CellID(
+      GoogleS2CellID::FromToken(absl::string_view(token.data(), token.size()))
+          .id());
 }
 
 /*static*/ S2CellID S2CellID::fromFaceLevelPosition(

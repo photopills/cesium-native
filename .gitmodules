@@ -68,3 +68,12 @@
 [submodule "extern/CSPRNG"]
 	path = extern/CSPRNG
 	url = https://github.com/Duthomhas/CSPRNG.git
+[submodule "extern/ada"]
+	path = extern/ada
+	url = https://github.com/ada-url/ada
+[submodule "extern/fmt"]
+	path = extern/fmt
+	url = https://github.com/fmtlib/fmt
+[submodule "extern/abseil"]
+	path = extern/abseil
+	url = https://github.com/abseil/abseil-cpp.git

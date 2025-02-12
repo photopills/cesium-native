@@ -135,25 +135,29 @@ add_library(
   s2geometry
   s2geometry/src/s2/s2cell_id.cc
   s2geometry/src/s2/r2rect.cc
-  s2geometry/src/s2/s2coords.cc
-  s2geometry/src/s2/util/bits/bits.cc
+  s2geometry/src/s2/s2coords.cc 
   s2geometry/src/s2/util/coding/coder.cc
-  s2geometry/src/s2/s2latlng.cc
-  s2geometry/src/s2/third_party/absl/strings/numbers.cc
-  s2geometry/src/s2/third_party/absl/strings/str_cat.cc
+  s2geometry/src/s2/s2latlng.cc    
   s2geometry/src/s2/s1angle.cc
-  s2geometry/src/s2/base/stringprintf.cc
-  s2geometry/src/s2/third_party/absl/base/internal/raw_logging.cc
-  s2geometry/src/s2/third_party/absl/strings/internal/memutil.cc
-  s2geometry/src/s2/third_party/absl/strings/ascii.cc
-  s2geometry/src/s2/third_party/absl/base/internal/throw_delegate.cc
+  #s2geometry/src/s2/base/stringprintf.cc
   s2geometry/src/s2/s1interval.cc
+  abseil/absl/base/internal/raw_logging.cc
+  abseil/absl/strings/internal/memutil.cc
+  abseil/absl/strings/ascii.cc
+  abseil/absl/base/internal/throw_delegate.cc
+  abseil/absl/strings/numbers.cc
+  abseil/absl/strings/str_cat.cc 
 )
+
 set_target_properties(s2geometry PROPERTIES
-  CXX_STANDARD 11
-  CXX_STANDARD_REQUIRED YES
+  CXX_STANDARD 17
+  CXX_STANDARD_REQUIRED ON
 )
-target_include_directories(s2geometry SYSTEM PUBLIC s2geometry/src)
+target_include_directories(s2geometry SYSTEM PUBLIC 
+    s2geometry/src 
+    abseil
+)
+
 if (MSVC)
   target_compile_options(s2geometry PRIVATE "/J" "/wd4127" "/wd4996")
   target_compile_definitions(s2geometry PRIVATE NOMINMAX _USE_MATH_DEFINES)
@@ -213,6 +217,10 @@ set(CESIUM_NATIVE_LIBMORTON_INCUDE_DIR "${CMAKE_CURRENT_LIST_DIR}/libmorton/incl
     "Include directory for libmorton libraries"
 )
 
+set(CESIUM_NATIVE_FMT_INCUDE_DIR "${CMAKE_CURRENT_LIST_DIR}/fmt/include" CACHE INTERNAL
+    "Include directory for fmt"
+)
+
 set(BUILD_TESTING OFF CACHE INTERNAL "Disable libmorton Testing")
 add_subdirectory(libmorton)
 
@@ -267,5 +275,7 @@ set_property(TARGET turbojpeg PROPERTY IMPORTED_LOCATION ${TJ_INSTALL_PREFIX}/li
 set_property(TARGET turbojpeg PROPERTY IMPORTED_LOCATION_DEBUG ${TJ_INSTALL_PREFIX}/lib/${CMAKE_STATIC_LIBRARY_PREFIX}turbojpeg${CMAKE_DEBUG_POSTFIX}${CMAKE_STATIC_LIBRARY_SUFFIX})
 target_include_directories(turbojpeg INTERFACE "${CMAKE_CURRENT_LIST_DIR}/libjpeg-turbo")
 add_dependencies(turbojpeg libjpeg-turbo)
+
+add_subdirectory(ada)
 
 endif()

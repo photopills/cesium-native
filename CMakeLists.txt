@@ -266,8 +266,6 @@ find_package(unofficial-sqlite3 CONFIG REQUIRED)
 find_package(WebP CONFIG REQUIRED)
 find_package(ada CONFIG REQUIRED)
 
-
-# Private Library (s2geometry)
 add_subdirectory(extern EXCLUDE_FROM_ALL)
 
 # Public Targets
@@ -309,13 +307,21 @@ add_subdirectory(doc)
 
 else() # USE_CESIUM_OLD_BUILD
 
+set(CESIUM_TESTS_ENABLED False)
+
+# Set defaults that should be set BEFORE compiler / IDE detection
+include("cmake/defaults.cmake")
+
 cmake_minimum_required(VERSION 3.15)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 project(cesium-native
-    VERSION 0.1.0
+    VERSION 0.44.2
     LANGUAGES CXX C
 )
+
+include(GNUInstallDirs)
+include(CMakeDependentOption)
 
 option(PRIVATE_CESIUM_SQLITE "ON to rename SQLite symbols to cesium_sqlite3_* so they won't conflict with other SQLite implemenentations" OFF)
 option(CESIUM_TRACING_ENABLED "Whether to enable the Cesium performance tracing framework (CESIUM_TRACE_* macros)." OFF)
@@ -451,7 +457,6 @@ add_subdirectory(extern EXCLUDE_FROM_ALL)
 set_target_properties(spdlog PROPERTIES DEBUG_POSTFIX ${CESIUM_DEBUG_POSTFIX})
 set_target_properties(tinyxml2 PROPERTIES DEBUG_POSTFIX ${CESIUM_DEBUG_POSTFIX})
 
-# Add aliases used in the new CMakeLists.txt using vcpkg
 add_library(s2::s2 ALIAS s2geometry)
 add_library(draco::draco ALIAS ${CESIUM_NATIVE_DRACO_LIBRARY})
 add_library(meshoptimizer::meshoptimizer ALIAS meshoptimizer)
@@ -463,9 +468,18 @@ add_library(libjpeg-trubo::turbojpeg ALIAS turbojpeg)
 add_library(libjpeg-turbo::turbojpeg-static ALIAS turbojpeg)
 add_library(unofficial::sqlite3::sqlite3 ALIAS sqlite3)
 add_library(tinyxml2::tinyxml2 ALIAS tinyxml2)
-add_library(uriparser::uriparser ALIAS uriparser)
 add_library(picosha2::picosha2 ALIAS PicoSHA2)
 add_library(zlib-ng::zlib-ng ALIAS zlib)
+add_library(ada::ada ALIAS ada)
+
+# Add global headers includes needed for several Modules
+include_directories(SYSTEM 
+    ${CESIUM_NATIVE_RAPIDJSON_INCLUDE_DIR}
+    ${CESIUM_NATIVE_DRACO_INCLUDE_DIR}
+    ${CESIUM_NATIVE_STB_INCLUDE_DIR}
+    ${CESIUM_NATIVE_LIBMORTON_INCUDE_DIR}
+    ${CESIUM_NATIVE_FMT_INCUDE_DIR}
+)
 
 # Public Targets
 add_subdirectory(CesiumUtility)
@@ -527,9 +541,6 @@ if (NOT ${CMAKE_SYSTEM_NAME} MATCHES "WindowsStore")
   install(TARGETS csprng)
 endif()
 
-install(TARGETS GSL)
-install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/extern/GSL/include/gsl TYPE INCLUDE)
-
 # ktx_read's PUBLIC_HEADER has paths relative to its own directory, so the install line below will fail.
 # We could fix that, but we don't need the KTX public headers installed anyway (they should be considered
 # private to cesium-native), so just set the PUBLIC_HEADER to an empty string.
@@ -550,5 +561,7 @@ install(TARGETS expected-lite)
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/extern/expected-lite/include/nonstd TYPE INCLUDE)
 
 install(TARGETS meshoptimizer)
+
+install(TARGETS ada)
 
 endif()
