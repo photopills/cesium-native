@@ -55,8 +55,6 @@ if (NOT TARGET Catch2 AND CESIUM_TESTS_ENABLED)
   add_subdirectory(Catch2)
 endif()
 
-add_subdirectory(GSL)
-
 option(KTX_FEATURE_STATIC_LIBRARY "" on)
 option(KTX_FEATURE_TESTS "" off)
 
