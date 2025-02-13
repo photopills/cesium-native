@@ -128,34 +128,54 @@ add_subdirectory(modp_b64)
 
 add_subdirectory(expected-lite)
 
+set(ABSL_PROPAGATE_CXX_STD ON)
+add_definitions(-DABSL_MIN_LOG_LEVEL=1)
+add_subdirectory(abseil)
+
 # s2geometry's CMake requires OpenSSL, even though it's not needed for any of
 # the functionality we actually use. So a simple library with enough functionality
 # for our needs is defined here.
-add_library(
-  s2geometry
+add_library(s2geometry
   s2geometry/src/s2/s2cell_id.cc
   s2geometry/src/s2/r2rect.cc
   s2geometry/src/s2/s2coords.cc 
   s2geometry/src/s2/util/coding/coder.cc
   s2geometry/src/s2/s2latlng.cc    
   s2geometry/src/s2/s1angle.cc
-  #s2geometry/src/s2/base/stringprintf.cc
-  s2geometry/src/s2/s1interval.cc
-  abseil/absl/base/internal/raw_logging.cc
-  abseil/absl/strings/internal/memutil.cc
-  abseil/absl/strings/ascii.cc
-  abseil/absl/base/internal/throw_delegate.cc
-  abseil/absl/strings/numbers.cc
-  abseil/absl/strings/str_cat.cc 
+  s2geometry/src/s2/base/malloc_extension.cc  
+  s2geometry/src/s2/s1interval.cc  
 )
 
-set_target_properties(s2geometry PROPERTIES
-  CXX_STANDARD 17
-  CXX_STANDARD_REQUIRED ON
-)
 target_include_directories(s2geometry SYSTEM PUBLIC 
     s2geometry/src 
     abseil
+)
+
+target_link_libraries(s2geometry PUBLIC    
+    absl::base
+    absl::btree
+    absl::check
+    absl::config
+    absl::core_headers
+    absl::dynamic_annotations
+    absl::endian
+    absl::fixed_array
+    absl::flags
+    absl::flat_hash_map
+    absl::flat_hash_set
+    absl::hash
+    absl::inlined_vector
+    absl::int128
+    absl::log
+    absl::log_severity
+    absl::memory
+    absl::span
+    absl::status
+    absl::str_format
+    absl::strings
+    absl::type_traits
+    absl::utility
+    absl::vlog_is_on  
 )
 
 if (MSVC)

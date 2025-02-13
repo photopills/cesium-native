@@ -97,6 +97,11 @@
     "license": ["Apache 2.0"]
   },
   {
+    "name": "abseil-cpp",
+    "url": "https://github.com/abseil/abseil-cpp",
+    "version:": "20240722.0"    
+  }
+  {
     "name": "spdlog",
     "url": "https://github.com/gabime/spdlog",
     "version": "1.10.0",
