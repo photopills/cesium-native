@@ -1,9 +1,12 @@
 name: prod
+#on:
+#  push:
+#    branches:
+#      - 'cesium.com'
+#      - 'cesium.com-staging'
+# Disable actions
 on:
-  push:
-    branches:
-      - 'cesium.com'
-      - 'cesium.com-staging'
+  workflow_dispatc
 jobs:
   deploy-docs:
     runs-on: ubuntu-22.04
