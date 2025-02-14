@@ -479,6 +479,7 @@ include_directories(SYSTEM
     ${CESIUM_NATIVE_STB_INCLUDE_DIR}
     ${CESIUM_NATIVE_LIBMORTON_INCUDE_DIR}
     ${CESIUM_NATIVE_FMT_INCUDE_DIR}
+    ${CESIUM_NATIVE_SQLITE3_INCUDE_DIR}
 )
 
 # Public Targets
@@ -512,7 +513,6 @@ endif()
 add_subdirectory(doc)
 
 # Installation of third-party libraries required to use cesium-native
-install(TARGETS uriparser OPTIONAL PUBLIC_HEADER DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/uriparser")
 
 install(DIRECTORY extern/glm/glm
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}

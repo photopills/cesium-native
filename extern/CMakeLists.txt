@@ -239,6 +239,10 @@ set(CESIUM_NATIVE_FMT_INCUDE_DIR "${CMAKE_CURRENT_LIST_DIR}/fmt/include" CACHE I
     "Include directory for fmt"
 )
 
+set(CESIUM_NATIVE_SQLITE3_INCUDE_DIR "${CMAKE_CURRENT_LIST_DIR}/sqlite3" CACHE INTERNAL
+    "Include directory for fmt"
+)
+
 set(BUILD_TESTING OFF CACHE INTERNAL "Disable libmorton Testing")
 add_subdirectory(libmorton)
 
