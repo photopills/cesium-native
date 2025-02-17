@@ -114,9 +114,12 @@ target_include_directories(
 
 add_subdirectory(asyncplusplus)
 
+add_subdirectory(fmt)
+
 set(SPDLOG_BUILD_TESTING OFF CACHE INTERNAL "Disable SPDLOG Testing")
+set(SPDLOG_FMT_EXTERNAL ON CACHE INTERNAL "Enable External FMT")
 add_subdirectory(spdlog)
-target_compile_definitions(spdlog PUBLIC _SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING)
+target_compile_definitions(spdlog INTERFACE _SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING)
 
 if (NOT TARGET sqlite3)
   add_subdirectory(sqlite3)
@@ -240,7 +243,7 @@ set(CESIUM_NATIVE_FMT_INCUDE_DIR "${CMAKE_CURRENT_LIST_DIR}/fmt/include" CACHE I
 )
 
 set(CESIUM_NATIVE_SQLITE3_INCUDE_DIR "${CMAKE_CURRENT_LIST_DIR}/sqlite3" CACHE INTERNAL
-    "Include directory for fmt"
+    "Include directory for sqlite3"
 )
 
 set(BUILD_TESTING OFF CACHE INTERNAL "Disable libmorton Testing")

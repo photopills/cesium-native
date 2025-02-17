@@ -471,6 +471,8 @@ add_library(tinyxml2::tinyxml2 ALIAS tinyxml2)
 add_library(picosha2::picosha2 ALIAS PicoSHA2)
 add_library(zlib-ng::zlib-ng ALIAS zlib)
 add_library(ada::ada ALIAS ada)
+add_library(spdlog::spdlog ALIAS spdlog)
+add_library(spdlog::spdlog_header_only ALIAS spdlog)
 
 # Add global headers includes needed for several Modules
 include_directories(SYSTEM 
