@@ -80,12 +80,6 @@ option(WEBP_NEAR_LOSSLESS "" off)
 option(WEBP_UNICODE "" off)
 add_subdirectory(libwebp)
 
-option(URIPARSER_BUILD_TESTS "" off)
-option(URIPARSER_BUILD_DOCS "" off)
-option(URIPARSER_ENABLE_INSTALL "" off)
-option(URIPARSER_BUILD_TOOLS "" off)
-add_subdirectory(uriparser)
-
 if ((NOT TARGET draco) AND (NOT TARGET draco_static))
     add_subdirectory(draco)
     if (MSVC)

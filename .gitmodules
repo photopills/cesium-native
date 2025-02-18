@@ -8,9 +8,6 @@
 [submodule "extern/glm"]
 	path = extern/glm
 	url = https://github.com/g-truc/glm.git
-[submodule "extern/uriparser"]
-	path = extern/uriparser
-	url = https://github.com/uriparser/uriparser.git
 [submodule "extern/draco"]
 	path = extern/draco
 	url = https://github.com/google/draco.git
