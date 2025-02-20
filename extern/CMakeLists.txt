@@ -46,7 +46,10 @@ set_target_properties(zlib-ng::zlib-ng PROPERTIES
 
 else() # USE_CESIUM_OLD_BUILD
 
-add_compile_options(-Wno-error -Wno-error=unused-but-set-variable -Wno-sign-conversion -Wno-error=shorten-64-to-32 -Wno-error=sign-conversion)
+if (MSVC)
+else()
+	add_compile_options(-Wno-error -Wno-error=unused-but-set-variable -Wno-sign-conversion -Wno-error=shorten-64-to-32 -Wno-error=sign-conversion)
+endif()
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_LIST_DIR}/Catch2/contrib")
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} PARENT_SCOPE)
