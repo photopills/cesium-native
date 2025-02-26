@@ -6,7 +6,7 @@ name: prod
 #      - 'cesium.com-staging'
 # Disable actions
 on:
-  workflow_dispatc
+  workflow_dispatch:
 jobs:
   deploy-docs:
     runs-on: ubuntu-22.04
