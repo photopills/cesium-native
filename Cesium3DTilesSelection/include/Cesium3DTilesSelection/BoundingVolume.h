@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Library.h"
-
+#include <Cesium3DTilesSelection/Library.h>
+#include <CesiumGeometry/BoundingCylinderRegion.h>
 #include <CesiumGeometry/BoundingSphere.h>
 #include <CesiumGeometry/OrientedBoundingBox.h>
 #include <CesiumGeospatial/BoundingRegion.h>
@@ -25,13 +25,15 @@ namespace Cesium3DTilesSelection {
  * @see CesiumGeospatial::BoundingRegion
  * @see CesiumGeospatial::BoundingRegionWithLooseFittingHeights
  * @see CesiumGeospatial::S2CellBoundingVolume
+ * @see CesiumGeometry::BoundingCylinderRegion
  */
 typedef std::variant<
     CesiumGeometry::BoundingSphere,
     CesiumGeometry::OrientedBoundingBox,
     CesiumGeospatial::BoundingRegion,
     CesiumGeospatial::BoundingRegionWithLooseFittingHeights,
-    CesiumGeospatial::S2CellBoundingVolume>
+    CesiumGeospatial::S2CellBoundingVolume,
+    CesiumGeometry::BoundingCylinderRegion>
     BoundingVolume;
 
 /**
@@ -73,7 +75,7 @@ estimateGlobeRectangle(
 
 /**
  * @brief Returns the bounding region if the bounding volume is a
- * {@link BoundingRegion} or a {@link BoundingRegionWithLooseFittingHeights}.
+ * {@link CesiumGeospatial::BoundingRegion} or a {@link CesiumGeospatial::BoundingRegionWithLooseFittingHeights}.
  *
  * @param boundingVolume The bounding volume.
  * @return A pointer to the bounding region, or nullptr is the bounding volume
@@ -86,6 +88,7 @@ getBoundingRegionFromBoundingVolume(const BoundingVolume& boundingVolume);
  * @brief Returns an oriented bounding box that contains the given {@link BoundingVolume}.
  *
  * @param boundingVolume The bounding volume.
+ * @param ellipsoid The ellipsoid used for this {@link BoundingVolume}.
  * @return The oriented bounding box.
  */
 CESIUM3DTILESSELECTION_API CesiumGeometry::OrientedBoundingBox

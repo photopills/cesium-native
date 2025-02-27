@@ -1,16 +1,15 @@
 #pragma once
 
-#include "BoundingRegion.h"
-#include "Ellipsoid.h"
-#include "S2CellID.h"
-
 #include <CesiumGeometry/CullingResult.h>
 #include <CesiumGeometry/Plane.h>
+#include <CesiumGeospatial/BoundingRegion.h>
+#include <CesiumGeospatial/Ellipsoid.h>
+#include <CesiumGeospatial/S2CellID.h>
 
 #include <glm/vec3.hpp>
-#include <gsl/span>
 
 #include <array>
+#include <span>
 #include <string_view>
 
 namespace CesiumGeospatial {
@@ -19,14 +18,16 @@ namespace CesiumGeospatial {
  * A tile bounding volume specified as an S2 cell token with minimum and maximum
  * heights. The bounding volume is a k DOP. A k-DOP is the Boolean intersection
  * of extents along k directions.
- *
- * @param cellID The S2 cell ID.
- * @param minimumHeight The minimum height of the bounding volume.
- * @param maximumHeight The maximum height of the bounding volume.
- * @param ellipsoid The ellipsoid.
  */
 class CESIUMGEOSPATIAL_API S2CellBoundingVolume final {
 public:
+  /** @brief Creates a new \ref S2CellBoundingVolume.
+   *
+   * @param cellID The S2 cell ID.
+   * @param minimumHeight The minimum height of the bounding volume.
+   * @param maximumHeight The maximum height of the bounding volume.
+   * @param ellipsoid The ellipsoid.
+   */
   S2CellBoundingVolume(
       const S2CellID& cellID,
       double minimumHeight,
@@ -60,7 +61,7 @@ public:
    *
    * @return An array of positions with a `size()` of 8.
    */
-  gsl::span<const glm::dvec3> getVertices() const noexcept;
+  std::span<const glm::dvec3> getVertices() const noexcept;
 
   /**
    * @brief Determines on which side of a plane the bounding volume is located.
@@ -93,7 +94,7 @@ public:
    *
    * @return An array of planes with a `size()` of 6.
    */
-  gsl::span<const CesiumGeometry::Plane> getBoundingPlanes() const noexcept;
+  std::span<const CesiumGeometry::Plane> getBoundingPlanes() const noexcept;
 
   /**
    * @brief Computes the bounding begion that best fits this S2 cell volume.

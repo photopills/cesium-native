@@ -1,9 +1,21 @@
-#include "CesiumGltf/TextureView.h"
-
-#include "CesiumGltf/Model.h"
-#include "CesiumGltf/SamplerUtility.h"
-
+#include <CesiumGltf/ExtensionKhrTextureTransform.h>
+#include <CesiumGltf/KhrTextureTransform.h>
+#include <CesiumGltf/Model.h>
+#include <CesiumGltf/Sampler.h>
+#include <CesiumGltf/SamplerUtility.h>
+#include <CesiumGltf/Texture.h>
+#include <CesiumGltf/TextureInfo.h>
+#include <CesiumGltf/TextureView.h>
 #include <CesiumUtility/Assert.h>
+
+#include <glm/common.hpp>
+#include <glm/ext/vector_double2.hpp>
+
+#include <cmath>
+#include <cstddef>
+#include <cstdint>
+#include <optional>
+#include <vector>
 
 namespace CesiumGltf {
 
@@ -14,7 +26,7 @@ TextureView::TextureView() noexcept
       _texCoordSetIndex(-1),
       _applyTextureTransform(false),
       _textureTransform(std::nullopt),
-      _imageCopy(std::nullopt) {}
+      _pImageCopy(nullptr) {}
 
 TextureView::TextureView(
     const Model& model,
@@ -26,7 +38,7 @@ TextureView::TextureView(
       _texCoordSetIndex(textureInfo.texCoord),
       _applyTextureTransform(options.applyKhrTextureTransformExtension),
       _textureTransform(std::nullopt),
-      _imageCopy(std::nullopt) {
+      _pImageCopy(nullptr) {
   int32_t textureIndex = textureInfo.index;
   if (textureIndex < 0 ||
       static_cast<size_t>(textureIndex) >= model.textures.size()) {
@@ -41,8 +53,8 @@ TextureView::TextureView(
     return;
   }
 
-  this->_pImage = &model.images[static_cast<size_t>(texture.source)].cesium;
-  if (this->_pImage->width < 1 || this->_pImage->height < 1) {
+  this->_pImage = model.images[static_cast<size_t>(texture.source)].pAsset;
+  if (!this->_pImage || this->_pImage->width < 1 || this->_pImage->height < 1) {
     this->_textureViewStatus = TextureViewStatus::ErrorEmptyImage;
     return;
   }
@@ -71,7 +83,8 @@ TextureView::TextureView(
   }
 
   if (options.makeImageCopy) {
-    this->_imageCopy = *this->_pImage;
+    this->_pImageCopy =
+        this->_pImage ? new ImageAsset(*this->_pImage) : nullptr;
   }
 
   this->_textureViewStatus = TextureViewStatus::Valid;
@@ -79,17 +92,17 @@ TextureView::TextureView(
 
 TextureView::TextureView(
     const Sampler& sampler,
-    const ImageCesium& image,
+    const ImageAsset& image,
     int64_t textureCoordinateSetIndex,
     const ExtensionKhrTextureTransform* pKhrTextureTransformExtension,
     const TextureViewOptions& options) noexcept
     : _textureViewStatus(TextureViewStatus::ErrorUninitialized),
       _pSampler(&sampler),
-      _pImage(&image),
+      _pImage(new ImageAsset(image)),
       _texCoordSetIndex(textureCoordinateSetIndex),
       _applyTextureTransform(options.applyKhrTextureTransformExtension),
       _textureTransform(std::nullopt),
-      _imageCopy(std::nullopt) {
+      _pImageCopy(nullptr) {
   // TODO: once compressed texture support is merged, check that the image is
   // decompressed here.
 
@@ -104,7 +117,8 @@ TextureView::TextureView(
   }
 
   if (options.makeImageCopy) {
-    this->_imageCopy = *this->_pImage;
+    this->_pImageCopy =
+        this->_pImage ? new ImageAsset(*this->_pImage) : nullptr;
   }
 
   this->_textureViewStatus = TextureViewStatus::Valid;
@@ -130,7 +144,8 @@ std::vector<uint8_t> TextureView::sampleNearestPixel(
   u = applySamplerWrapS(u, this->_pSampler->wrapS);
   v = applySamplerWrapT(v, this->_pSampler->wrapT);
 
-  const ImageCesium& image = this->_imageCopy.value_or(*this->_pImage);
+  const ImageAsset& image =
+      this->_pImageCopy != nullptr ? *this->_pImageCopy : *this->_pImage;
 
   // For nearest filtering, std::floor is used instead of std::round.
   // This is because filtering is supposed to consider the pixel centers. But
@@ -153,7 +168,8 @@ std::vector<uint8_t> TextureView::sampleNearestPixel(
       static_cast<int64_t>(image.height) - 1);
 
   int64_t pixelIndex =
-      image.bytesPerChannel * image.channels * (y * image.width + x);
+      static_cast<int64_t>(image.bytesPerChannel * image.channels) *
+      (y * image.width + x);
 
   // TODO: Currently stb only outputs uint8 pixel types. If that
   // changes this should account for additional pixel byte sizes.

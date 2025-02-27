@@ -1,8 +1,26 @@
+#include <Cesium3DTilesContent/GltfConverterResult.h>
 #include <Cesium3DTilesContent/GltfConverters.h>
+#include <CesiumAsync/Future.h>
+#include <CesiumAsync/IAssetRequest.h>
 #include <CesiumAsync/IAssetResponse.h>
+#include <CesiumGltfReader/GltfReader.h>
+#include <CesiumUtility/ErrorList.h>
 #include <CesiumUtility/Uri.h>
 
-#include <spdlog/spdlog.h>
+#include <fmt/format.h>
+
+#include <algorithm>
+#include <cctype>
+#include <cstddef>
+#include <cstdint>
+#include <iterator>
+#include <memory>
+#include <optional>
+#include <span>
+#include <string>
+#include <string_view>
+#include <unordered_map>
+#include <utility>
 
 using namespace CesiumUtility;
 
@@ -34,14 +52,14 @@ GltfConverters::getConverterByFileExtension(const std::string& filePath) {
 }
 
 GltfConverters::ConverterFunction
-GltfConverters::getConverterByMagic(const gsl::span<const std::byte>& content) {
+GltfConverters::getConverterByMagic(const std::span<const std::byte>& content) {
   std::string magic;
   return getConverterByMagic(content, magic);
 }
 
 CesiumAsync::Future<GltfConverterResult> GltfConverters::convert(
     const std::string& filePath,
-    const gsl::span<const std::byte>& content,
+    const std::span<const std::byte>& content,
     const CesiumGltfReader::GltfReaderOptions& options,
     const AssetFetcher& assetFetcher) {
   std::string magic;
@@ -68,7 +86,7 @@ CesiumAsync::Future<GltfConverterResult> GltfConverters::convert(
 }
 
 CesiumAsync::Future<GltfConverterResult> GltfConverters::convert(
-    const gsl::span<const std::byte>& content,
+    const std::span<const std::byte>& content,
     const CesiumGltfReader::GltfReaderOptions& options,
     const AssetFetcher& assetFetcher) {
   std::string magic;
@@ -98,8 +116,8 @@ std::string GltfConverters::toLowerCase(const std::string_view& str) {
 }
 
 std::string GltfConverters::getFileExtension(const std::string_view& filePath) {
-  std::string_view urlWithoutQueries = filePath.substr(0, filePath.find("?"));
-  size_t extensionPos = urlWithoutQueries.rfind(".");
+  std::string_view urlWithoutQueries = filePath.substr(0, filePath.find('?'));
+  size_t extensionPos = urlWithoutQueries.rfind('.');
   if (extensionPos < urlWithoutQueries.size()) {
     std::string_view extension = urlWithoutQueries.substr(extensionPos);
     std::string lowerCaseExtension = toLowerCase(extension);
@@ -122,7 +140,7 @@ GltfConverters::ConverterFunction GltfConverters::getConverterByFileExtension(
 }
 
 GltfConverters::ConverterFunction GltfConverters::getConverterByMagic(
-    const gsl::span<const std::byte>& content,
+    const std::span<const std::byte>& content,
     std::string& magic) {
   if (content.size() >= 4) {
     magic = std::string(reinterpret_cast<const char*>(content.data()), 4);
@@ -162,7 +180,7 @@ AssetFetcher::get(const std::string& relativeUrl) const {
               return asyncSystem.createResolvedFuture(
                   std::move(assetFetcherResult));
             }
-            gsl::span<const std::byte> asset = pResponse->data();
+            std::span<const std::byte> asset = pResponse->data();
             std::copy(
                 asset.begin(),
                 asset.end(),

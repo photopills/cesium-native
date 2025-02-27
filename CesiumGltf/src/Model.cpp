@@ -1,26 +1,63 @@
-#include "CesiumGltf/Model.h"
-
-#include "CesiumGltf/AccessorView.h"
-#include "CesiumGltf/ExtensionBufferViewExtMeshoptCompression.h"
-#include "CesiumGltf/ExtensionCesiumPrimitiveOutline.h"
-#include "CesiumGltf/ExtensionCesiumTileEdges.h"
-#include "CesiumGltf/ExtensionExtMeshFeatures.h"
-#include "CesiumGltf/ExtensionExtMeshGpuInstancing.h"
-#include "CesiumGltf/ExtensionKhrDracoMeshCompression.h"
-#include "CesiumGltf/ExtensionKhrTextureBasisu.h"
-#include "CesiumGltf/ExtensionMeshPrimitiveExtStructuralMetadata.h"
-#include "CesiumGltf/ExtensionModelExtStructuralMetadata.h"
-#include "CesiumGltf/ExtensionTextureWebp.h"
-
+#include <CesiumGltf/Accessor.h>
+#include <CesiumGltf/AccessorView.h>
+#include <CesiumGltf/Animation.h>
+#include <CesiumGltf/AnimationChannel.h>
+#include <CesiumGltf/AnimationSampler.h>
+#include <CesiumGltf/Buffer.h>
+#include <CesiumGltf/BufferView.h>
+#include <CesiumGltf/Class.h>
+#include <CesiumGltf/ClassProperty.h>
+#include <CesiumGltf/Enum.h>
+#include <CesiumGltf/ExtensionBufferViewExtMeshoptCompression.h>
+#include <CesiumGltf/ExtensionCesiumPrimitiveOutline.h>
+#include <CesiumGltf/ExtensionCesiumTileEdges.h>
+#include <CesiumGltf/ExtensionExtMeshFeatures.h>
+#include <CesiumGltf/ExtensionExtMeshGpuInstancing.h>
+#include <CesiumGltf/ExtensionKhrDracoMeshCompression.h>
+#include <CesiumGltf/ExtensionKhrTextureBasisu.h>
+#include <CesiumGltf/ExtensionMeshPrimitiveExtStructuralMetadata.h>
+#include <CesiumGltf/ExtensionModelExtStructuralMetadata.h>
+#include <CesiumGltf/ExtensionTextureWebp.h>
+#include <CesiumGltf/FeatureId.h>
+#include <CesiumGltf/Image.h>
+#include <CesiumGltf/Material.h>
+#include <CesiumGltf/MaterialPBRMetallicRoughness.h>
+#include <CesiumGltf/Mesh.h>
+#include <CesiumGltf/MeshPrimitive.h>
+#include <CesiumGltf/Model.h>
+#include <CesiumGltf/Node.h>
+#include <CesiumGltf/PropertyAttribute.h>
+#include <CesiumGltf/PropertyTable.h>
+#include <CesiumGltf/PropertyTableProperty.h>
+#include <CesiumGltf/PropertyTexture.h>
+#include <CesiumGltf/PropertyTextureProperty.h>
+#include <CesiumGltf/Scene.h>
+#include <CesiumGltf/Schema.h>
+#include <CesiumGltf/Skin.h>
+#include <CesiumGltf/Texture.h>
 #include <CesiumUtility/Assert.h>
+#include <CesiumUtility/ErrorList.h>
 
-#include <glm/gtc/quaternion.hpp>
+#include <fmt/format.h>
+#include <glm/exponential.hpp>
+#include <glm/ext/matrix_double4x4.hpp>
+#include <glm/ext/quaternion_double.hpp>
+#include <glm/ext/vector_float3.hpp>
+#include <glm/geometric.hpp>
 #include <glm/gtx/norm.hpp>
-#include <glm/vec3.hpp>
-#include <gsl/span>
 
 #include <algorithm>
-#include <charconv>
+#include <array>
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <limits>
+#include <map>
+#include <optional>
+#include <span>
+#include <string>
+#include <utility>
+#include <vector>
 
 using namespace CesiumUtility;
 
@@ -634,7 +671,7 @@ void Model::forEachPrimitiveInScene(
 namespace {
 template <typename TIndex>
 void addTriangleNormalToVertexNormals(
-    const gsl::span<glm::vec3>& normals,
+    const std::span<glm::vec3>& normals,
     const AccessorView<glm::vec3>& positionView,
     TIndex tIndex0,
     TIndex tIndex1,
@@ -663,7 +700,7 @@ void addTriangleNormalToVertexNormals(
 template <typename TIndex, typename GetIndex>
 bool accumulateNormals(
     int32_t meshPrimitiveMode,
-    const gsl::span<glm::vec3>& normals,
+    const std::span<glm::vec3>& normals,
     const AccessorView<glm::vec3>& positionView,
     int64_t numIndices,
     GetIndex getIndex) {
@@ -749,7 +786,7 @@ void generateSmoothNormals(
   const size_t normalBufferSize = count * normalBufferStride;
 
   std::vector<std::byte> normalByteBuffer(normalBufferSize);
-  gsl::span<glm::vec3> normals(
+  std::span<glm::vec3> normals(
       reinterpret_cast<glm::vec3*>(normalByteBuffer.data()),
       count);
 

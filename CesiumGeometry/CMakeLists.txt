@@ -28,14 +28,13 @@ target_sources(
         ${CESIUM_GEOMETRY_PUBLIC_HEADERS}
 )
 
-target_include_directories(
-    CesiumGeometry
-    SYSTEM PUBLIC
+cesium_target_include_directories(
+    TARGET
+        CesiumGeometry
+    PUBLIC
         ${CMAKE_CURRENT_LIST_DIR}/include
 )
 
 target_link_libraries(CesiumGeometry PUBLIC
     CesiumUtility
 )
-
-target_compile_definitions(CesiumGeometry PRIVATE GLM_ENABLE_EXPERIMENTAL)

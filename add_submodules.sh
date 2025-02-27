@@ -2,8 +2,7 @@
 
 # Array of paths and URLs
 submodules=(
-  "extern/glm https://github.com/g-truc/glm.git"
-  "extern/uriparser https://github.com/uriparser/uriparser.git"
+  "extern/glm https://github.com/g-truc/glm.git"  
   "extern/draco https://github.com/google/draco.git"
   "extern/earcut https://github.com/mapbox/earcut.hpp.git"
   "extern/Catch2 https://github.com/catchorg/Catch2.git"

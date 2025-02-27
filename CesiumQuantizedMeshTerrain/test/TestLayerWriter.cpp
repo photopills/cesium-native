@@ -1,8 +1,11 @@
+#include <CesiumJsonReader/JsonReader.h>
 #include <CesiumQuantizedMeshTerrain/Layer.h>
 #include <CesiumQuantizedMeshTerrain/LayerReader.h>
 #include <CesiumQuantizedMeshTerrain/LayerWriter.h>
 
-#include <catch2/catch.hpp>
+#include <doctest/doctest.h>
+
+#include <vector>
 
 using namespace CesiumJsonReader;
 using namespace CesiumQuantizedMeshTerrain;

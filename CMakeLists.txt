@@ -37,6 +37,8 @@ if (NOT VCPKG_OVERLAY_PORTS)
     endif()
 endif()
 
+list(APPEND VCPKG_OVERLAY_PORTS "${CMAKE_CURRENT_SOURCE_DIR}/extern/vcpkg/ports")
+
 message(STATUS "VCPKG_OVERLAY_PORTS ${VCPKG_OVERLAY_PORTS}")
 
 if (NOT VCPKG_OVERLAY_TRIPLETS)
@@ -50,8 +52,8 @@ message(STATUS "VCPKG_OVERLAY_TRIPLETS ${VCPKG_OVERLAY_TRIPLETS}")
 # These packages are used in the public headers of Cesium libraries, so we need to distribute the headers and binaries
 # with the installation
 # Note that fmt is a public dependency of the vcpkg version of spdlog
-# STB and uriparser aren't technically part of the public interface, but they're used by the downstream Cesium for Unreal project
-set(PACKAGES_PUBLIC asyncplusplus expected-lite fmt glm ms-gsl rapidjson spdlog stb uriparser)
+# STB is not technically part of the public interface, but it is used by the downstream Cesium for Unreal project
+set(PACKAGES_PUBLIC asyncplusplus expected-lite fmt glm rapidjson spdlog stb ada-url)
 # These packages are used in the code and produce binaries, but are not part of the public interface.  Therefore we need
 # to distribute the binaries for linking, but not the headers, as downstream consumers don't need them
 # OpenSSL and abseil are both dependencies of s2geometry
@@ -62,7 +64,7 @@ set(PACKAGES_PRIVATE
 )
 
 # Packages only used for testing
-set(PACKAGES_TEST catch2)
+set(PACKAGES_TEST doctest)
 
 if(NOT VCPKG_MANIFEST_MODE)
     set(PACKAGES_ALL ${PACKAGES_PUBLIC})
@@ -70,7 +72,7 @@ if(NOT VCPKG_MANIFEST_MODE)
     list(APPEND PACKAGES_ALL ${PACKAGES_TEST})
 
     ezvcpkg_fetch(
-        COMMIT 2024.07.12
+        COMMIT 2024.11.16
         PACKAGES ${PACKAGES_ALL}
         # Clean the build trees after building, so that we don't use a ton a disk space on the CI cache
         CLEAN_BUILDTREES
@@ -91,11 +93,12 @@ endif()
 include("cmake/defaults.cmake")
 
 project(cesium-native
-    VERSION 0.1.0
+    VERSION 0.44.3
     LANGUAGES CXX C
 )
 
 include(GNUInstallDirs)
+include(CMakeDependentOption)
 
 set(PACKAGE_BASE_DIR "${EZVCPKG_PACKAGES_DIR}")
 set(PACKAGE_BUILD_DIR "${EZVCPKG_DIR}")
@@ -111,6 +114,17 @@ message(STATUS "PACKAGE_BUILD_DIR ${PACKAGE_BUILD_DIR}")
 
 option(CESIUM_INSTALL_STATIC_LIBS "Whether to install the static libraries of cesium-native and its dependencies." ON)
 option(CESIUM_INSTALL_HEADERS "Whether to install the header files of cesium-native and its public dependencies." ON)
+option(CESIUM_ENABLE_CLANG_TIDY "Enable clang-tidy targets for static code analysis." ON)
+
+cmake_dependent_option(
+    CESIUM_ENABLE_CLANG_TIDY_ON_BUILD
+    "Run clang-tidy while building. Will slow down the build process. Available only if CESIUM_ENABLE_CLANG_TIDY is ON."
+    OFF
+    CESIUM_ENABLE_CLANG_TIDY
+    OFF
+)
+
+set(CESIUM_CLANG_TIDY_USE_THREADS 14 CACHE STRING "Sets the number of threads for run-clang-tidy to use.")
 
 if(CESIUM_INSTALL_STATIC_LIBS OR CESIUM_INSTALL_HEADERS)
     foreach(PACKAGE ${PACKAGES_PUBLIC})
@@ -127,7 +141,7 @@ if(CESIUM_INSTALL_STATIC_LIBS OR CESIUM_INSTALL_HEADERS)
 
         if (CESIUM_INSTALL_STATIC_LIBS AND NOT PACKAGE IN_LIST CESIUM_EXCLUDE_INSTALL_STATIC_LIBS AND EXISTS ${PACKAGE_DIR}/lib)
             install(
-                DIRECTORY ${PACKAGE_DIR}/lib/
+                DIRECTORY $<IF:$<CONFIG:Debug>,${PACKAGE_DIR}/debug/lib/,${PACKAGE_DIR}/lib/>
                 DESTINATION ${CMAKE_INSTALL_LIBDIR}
             )
         endif()
@@ -140,7 +154,7 @@ if(CESIUM_INSTALL_STATIC_LIBS)
         message(DEBUG "PACKAGE_DIR ${PACKAGE_DIR}")
         if (NOT PACKAGE IN_LIST CESIUM_EXCLUDE_INSTALL_STATIC_LIBS AND EXISTS ${PACKAGE_DIR}/lib)
             install(
-                DIRECTORY ${PACKAGE_DIR}/lib/
+                DIRECTORY $<IF:$<CONFIG:Debug>,${PACKAGE_DIR}/debug/lib/,${PACKAGE_DIR}/lib/>
                 DESTINATION ${CMAKE_INSTALL_LIBDIR}
             )
         endif()
@@ -177,6 +191,7 @@ option(CESIUM_TESTS_ENABLED "Whether to enable tests" ON)
 option(CESIUM_GLM_STRICT_ENABLED "Whether to force strict GLM compile definitions." ON)
 option(CESIUM_DISABLE_DEFAULT_ELLIPSOID "Whether to disable the WGS84 default value for ellipsoid parameters across cesium-native." OFF)
 option(CESIUM_MSVC_STATIC_RUNTIME_ENABLED "Whether to enable static linking for MSVC runtimes" OFF)
+option(CESIUM_DEBUG_TILE_UNLOADING "Whether to enable tracking of tile _doNotUnloadSubtreeCount modifications for tile unloading debugging." OFF)
 
 if (CESIUM_MSVC_STATIC_RUNTIME_ENABLED)
     set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
@@ -188,6 +203,17 @@ endif()
 
 # Set defaults that need to be set AFTER compiler / IDE detection
 include("cmake/compiler.cmake")
+
+if(CESIUM_ENABLE_CLANG_TIDY)
+    setup_clang_tidy(
+        PROJECT_BUILD_DIRECTORY
+        "${PROJECT_BINARY_DIR}"
+        PROJECT_SOURCE_DIRECTORIES
+        "${PROJECT_SOURCE_DIR}"
+        ENABLE_CLANG_TIDY_ON_BUILD
+        ${CESIUM_ENABLE_CLANG_TIDY_ON_BUILD}
+    )
+endif()
 
 # Add Modules
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/extern/cmake-modules/")
@@ -224,12 +250,11 @@ list(APPEND CMAKE_PREFIX_PATH "${PACKAGE_BUILD_DIR}")
 # and imporeted library target ourselves. This is the case for modp_b64::modp_b64, picosha2::picosha2 and earcut. In
 # these cases, we *do* have the somewhat ugly and verbose details in the extern/CMakeLists.txt file.
 find_package(Async++ CONFIG REQUIRED)
-find_package(Catch2 CONFIG REQUIRED)
+find_package(doctest CONFIG REQUIRED)
 find_package(draco CONFIG REQUIRED)
 find_package(expected-lite CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
 find_package(meshoptimizer CONFIG REQUIRED)
-find_package(Microsoft.GSL REQUIRED)
 find_package(httplib CONFIG REQUIRED)
 find_package(Ktx CONFIG REQUIRED)
 find_package(libmorton CONFIG REQUIRED)
@@ -239,11 +264,9 @@ find_package(s2 CONFIG REQUIRED)
 find_package(spdlog CONFIG REQUIRED)
 find_package(tinyxml2 CONFIG REQUIRED)
 find_package(unofficial-sqlite3 CONFIG REQUIRED)
-find_package(uriparser CONFIG REQUIRED char wchar_t)
 find_package(WebP CONFIG REQUIRED)
+find_package(ada CONFIG REQUIRED)
 
-
-# Private Library (s2geometry)
 add_subdirectory(extern EXCLUDE_FROM_ALL)
 
 # Public Targets
@@ -285,13 +308,21 @@ add_subdirectory(doc)
 
 else() # USE_CESIUM_OLD_BUILD
 
+set(CESIUM_TESTS_ENABLED False)
+
+# Set defaults that should be set BEFORE compiler / IDE detection
+include("cmake/defaults.cmake")
+
 cmake_minimum_required(VERSION 3.15)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 project(cesium-native
-    VERSION 0.1.0
+    VERSION 0.44.2
     LANGUAGES CXX C
 )
+
+include(GNUInstallDirs)
+include(CMakeDependentOption)
 
 option(PRIVATE_CESIUM_SQLITE "ON to rename SQLite symbols to cesium_sqlite3_* so they won't conflict with other SQLite implemenentations" OFF)
 option(CESIUM_TRACING_ENABLED "Whether to enable the Cesium performance tracing framework (CESIUM_TRACE_* macros)." OFF)
@@ -427,7 +458,6 @@ add_subdirectory(extern EXCLUDE_FROM_ALL)
 set_target_properties(spdlog PROPERTIES DEBUG_POSTFIX ${CESIUM_DEBUG_POSTFIX})
 set_target_properties(tinyxml2 PROPERTIES DEBUG_POSTFIX ${CESIUM_DEBUG_POSTFIX})
 
-# Add aliases used in the new CMakeLists.txt using vcpkg
 add_library(s2::s2 ALIAS s2geometry)
 add_library(draco::draco ALIAS ${CESIUM_NATIVE_DRACO_LIBRARY})
 add_library(meshoptimizer::meshoptimizer ALIAS meshoptimizer)
@@ -435,13 +465,25 @@ add_library(modp_b64::modp_b64 ALIAS modp_b64)
 add_library(KTX::ktx ALIAS ktx)
 add_library(WebP::webp ALIAS webp)
 add_library(WebP::webpdecoder ALIAS webpdecoder)
-add_library(libjpeg-trubo::turbojpeg ALIAS turbojpeg)
+add_library(libjpeg-turbo::turbojpeg ALIAS turbojpeg)
 add_library(libjpeg-turbo::turbojpeg-static ALIAS turbojpeg)
 add_library(unofficial::sqlite3::sqlite3 ALIAS sqlite3)
 add_library(tinyxml2::tinyxml2 ALIAS tinyxml2)
-add_library(uriparser::uriparser ALIAS uriparser)
 add_library(picosha2::picosha2 ALIAS PicoSHA2)
 add_library(zlib-ng::zlib-ng ALIAS zlib)
+add_library(ada::ada ALIAS ada)
+add_library(spdlog::spdlog ALIAS spdlog)
+add_library(spdlog::spdlog_header_only ALIAS spdlog)
+
+# Add global headers includes needed for several Modules
+include_directories(SYSTEM 
+    ${CESIUM_NATIVE_RAPIDJSON_INCLUDE_DIR}
+    ${CESIUM_NATIVE_DRACO_INCLUDE_DIR}
+    ${CESIUM_NATIVE_STB_INCLUDE_DIR}
+    ${CESIUM_NATIVE_LIBMORTON_INCUDE_DIR}
+    ${CESIUM_NATIVE_FMT_INCUDE_DIR}
+    ${CESIUM_NATIVE_SQLITE3_INCUDE_DIR}
+)
 
 # Public Targets
 add_subdirectory(CesiumUtility)
@@ -474,7 +516,6 @@ endif()
 add_subdirectory(doc)
 
 # Installation of third-party libraries required to use cesium-native
-install(TARGETS uriparser OPTIONAL PUBLIC_HEADER DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/uriparser")
 
 install(DIRECTORY extern/glm/glm
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
@@ -503,9 +544,6 @@ if (NOT ${CMAKE_SYSTEM_NAME} MATCHES "WindowsStore")
   install(TARGETS csprng)
 endif()
 
-install(TARGETS GSL)
-install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/extern/GSL/include/gsl TYPE INCLUDE)
-
 # ktx_read's PUBLIC_HEADER has paths relative to its own directory, so the install line below will fail.
 # We could fix that, but we don't need the KTX public headers installed anyway (they should be considered
 # private to cesium-native), so just set the PUBLIC_HEADER to an empty string.
@@ -526,5 +564,7 @@ install(TARGETS expected-lite)
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/extern/expected-lite/include/nonstd TYPE INCLUDE)
 
 install(TARGETS meshoptimizer)
+
+install(TARGETS ada)
 
 endif()

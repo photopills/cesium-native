@@ -1,9 +1,23 @@
+#include <CesiumAsync/AsyncSystem.h>
+#include <CesiumAsync/HttpHeaders.h>
+#include <CesiumAsync/IAssetAccessor.h>
+#include <CesiumAsync/IAssetRequest.h>
 #include <CesiumNativeTests/FileAccessor.h>
 #include <CesiumNativeTests/SimpleAssetRequest.h>
+#include <CesiumNativeTests/SimpleAssetResponse.h>
 #include <CesiumUtility/Uri.h>
 
+#include <cstddef>
+#include <cstdint>
 #include <cstring>
 #include <fstream>
+#include <ios>
+#include <memory>
+#include <span>
+#include <stdexcept>
+#include <string>
+#include <utility>
+#include <vector>
 
 namespace CesiumNativeTests {
 
@@ -68,7 +82,7 @@ FileAccessor::request(
     const std::string& verb,
     const std::string& url,
     const std::vector<THeader>& headers,
-    const gsl::span<const std::byte>&) {
+    const std::span<const std::byte>&) {
   if (verb == "GET") {
     return get(asyncSystem, url, headers);
   }

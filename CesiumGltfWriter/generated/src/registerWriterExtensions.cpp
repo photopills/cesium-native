@@ -7,15 +7,34 @@
 
 #include <CesiumGltf/Buffer.h>
 #include <CesiumGltf/BufferView.h>
+#include <CesiumGltf/FeatureIdTexture.h>
+#include <CesiumGltf/Material.h>
+#include <CesiumGltf/MaterialNormalTextureInfo.h>
+#include <CesiumGltf/MaterialOcclusionTextureInfo.h>
+#include <CesiumGltf/MeshPrimitive.h>
+#include <CesiumGltf/Model.h>
+#include <CesiumGltf/Node.h>
+#include <CesiumGltf/PropertyTextureProperty.h>
+#include <CesiumGltf/Shape.h>
+#include <CesiumGltf/Texture.h>
+#include <CesiumGltf/TextureInfo.h>
+#include <CesiumJsonWriter/ExtensionWriterContext.h>
+
+// NOLINTBEGIN(misc-include-cleaner)
 #include <CesiumGltf/ExtensionBufferExtMeshoptCompression.h>
 #include <CesiumGltf/ExtensionBufferViewExtMeshoptCompression.h>
 #include <CesiumGltf/ExtensionCesiumPrimitiveOutline.h>
 #include <CesiumGltf/ExtensionCesiumRTC.h>
 #include <CesiumGltf/ExtensionCesiumTileEdges.h>
+#include <CesiumGltf/ExtensionExtImplicitCylinderRegion.h>
+#include <CesiumGltf/ExtensionExtImplicitEllipsoidRegion.h>
 #include <CesiumGltf/ExtensionExtInstanceFeatures.h>
 #include <CesiumGltf/ExtensionExtMeshFeatures.h>
 #include <CesiumGltf/ExtensionExtMeshGpuInstancing.h>
+#include <CesiumGltf/ExtensionExtPrimitiveVoxels.h>
+#include <CesiumGltf/ExtensionExtStructuralMetadata.h>
 #include <CesiumGltf/ExtensionKhrDracoMeshCompression.h>
+#include <CesiumGltf/ExtensionKhrImplicitShapes.h>
 #include <CesiumGltf/ExtensionKhrMaterialsUnlit.h>
 #include <CesiumGltf/ExtensionKhrTextureBasisu.h>
 #include <CesiumGltf/ExtensionKhrTextureTransform.h>
@@ -26,17 +45,7 @@
 #include <CesiumGltf/ExtensionModelMaxarMeshVariants.h>
 #include <CesiumGltf/ExtensionNodeMaxarMeshVariants.h>
 #include <CesiumGltf/ExtensionTextureWebp.h>
-#include <CesiumGltf/FeatureIdTexture.h>
-#include <CesiumGltf/Material.h>
-#include <CesiumGltf/MaterialNormalTextureInfo.h>
-#include <CesiumGltf/MaterialOcclusionTextureInfo.h>
-#include <CesiumGltf/MeshPrimitive.h>
-#include <CesiumGltf/Model.h>
-#include <CesiumGltf/Node.h>
-#include <CesiumGltf/PropertyTextureProperty.h>
-#include <CesiumGltf/Texture.h>
-#include <CesiumGltf/TextureInfo.h>
-#include <CesiumJsonWriter/ExtensionWriterContext.h>
+// NOLINTEND(misc-include-cleaner)
 
 namespace CesiumGltfWriter {
 
@@ -53,6 +62,9 @@ void registerWriterExtensions(
   context.registerExtension<
       CesiumGltf::Model,
       ExtensionModelMaxarMeshVariantsJsonWriter>();
+  context.registerExtension<
+      CesiumGltf::Model,
+      ExtensionKhrImplicitShapesJsonWriter>();
   context.registerExtension<
       CesiumGltf::MeshPrimitive,
       ExtensionCesiumTileEdgesJsonWriter>();
@@ -72,11 +84,17 @@ void registerWriterExtensions(
       CesiumGltf::MeshPrimitive,
       ExtensionCesiumPrimitiveOutlineJsonWriter>();
   context.registerExtension<
+      CesiumGltf::MeshPrimitive,
+      ExtensionExtPrimitiveVoxelsJsonWriter>();
+  context.registerExtension<
       CesiumGltf::Node,
       ExtensionExtInstanceFeaturesJsonWriter>();
   context.registerExtension<
       CesiumGltf::Node,
       ExtensionExtMeshGpuInstancingJsonWriter>();
+  context.registerExtension<
+      CesiumGltf::Node,
+      ExtensionExtStructuralMetadataJsonWriter>();
   context.registerExtension<
       CesiumGltf::Node,
       ExtensionNodeMaxarMeshVariantsJsonWriter>();
@@ -86,6 +104,9 @@ void registerWriterExtensions(
   context.registerExtension<
       CesiumGltf::BufferView,
       ExtensionBufferViewExtMeshoptCompressionJsonWriter>();
+  context.registerExtension<
+      CesiumGltf::Material,
+      ExtensionExtStructuralMetadataJsonWriter>();
   context.registerExtension<
       CesiumGltf::Material,
       ExtensionKhrMaterialsUnlitJsonWriter>();
@@ -109,5 +130,11 @@ void registerWriterExtensions(
   context.registerExtension<
       CesiumGltf::FeatureIdTexture,
       ExtensionKhrTextureTransformJsonWriter>();
+  context.registerExtension<
+      CesiumGltf::Shape,
+      ExtensionExtImplicitEllipsoidRegionJsonWriter>();
+  context.registerExtension<
+      CesiumGltf::Shape,
+      ExtensionExtImplicitCylinderRegionJsonWriter>();
 }
 } // namespace CesiumGltfWriter

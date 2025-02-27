@@ -1,11 +1,11 @@
 #pragma once
 
-#include "BoundingRegion.h"
-#include "CesiumGeometry/AxisAlignedBox.h"
-#include "CesiumGeometry/Rectangle.h"
-#include "Ellipsoid.h"
-#include "GeographicProjection.h"
-#include "WebMercatorProjection.h"
+#include <CesiumGeometry/AxisAlignedBox.h>
+#include <CesiumGeometry/Rectangle.h>
+#include <CesiumGeospatial/BoundingRegion.h>
+#include <CesiumGeospatial/Ellipsoid.h>
+#include <CesiumGeospatial/GeographicProjection.h>
+#include <CesiumGeospatial/WebMercatorProjection.h>
 
 #include <glm/vec2.hpp>
 
@@ -87,7 +87,7 @@ GlobeRectangle unprojectRectangleSimple(
  * necessarily true for other projections.
  *
  * @param projection The projection.
- * @param boundingRegion The bounding region to be projected.
+ * @param region The bounding region to be projected.
  * @return The projected box.
  */
 CesiumGeometry::AxisAlignedBox
@@ -103,6 +103,7 @@ projectRegionSimple(const Projection& projection, const BoundingRegion& region);
  *
  * @param projection The projection.
  * @param box The box to be unprojected.
+ * @param ellipsoid The {@link CesiumGeospatial::Ellipsoid}.
  * @return The unprojected bounding region.
  */
 BoundingRegion unprojectRegionSimple(

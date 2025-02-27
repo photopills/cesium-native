@@ -1,7 +1,6 @@
 #pragma once
 
-#include "CesiumGltfWriter/Library.h"
-
+#include <CesiumGltfWriter/Library.h>
 #include <CesiumJsonWriter/ExtensionWriterContext.h>
 
 // forward declarations
@@ -13,7 +12,7 @@ namespace CesiumGltfWriter {
 
 /**
  * @brief The result of writing a schema with
- * {@link SchemaWriterWriter::writeSchema}.
+ * {@link SchemaWriter::writeSchema}.
  */
 struct CESIUMGLTFWRITER_API SchemaWriterResult {
   /**

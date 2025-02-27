@@ -1,8 +1,26 @@
+#include <CesiumAsync/AsyncSystem.h>
+#include <CesiumAsync/Future.h>
+#include <CesiumAsync/IAssetAccessor.h>
+#include <CesiumGeospatial/Ellipsoid.h>
 #include <CesiumGeospatial/GeographicProjection.h>
+#include <CesiumGltf/ImageAsset.h>
 #include <CesiumRasterOverlays/DebugColorizeTilesRasterOverlay.h>
+#include <CesiumRasterOverlays/RasterOverlay.h>
 #include <CesiumRasterOverlays/RasterOverlayTile.h>
 #include <CesiumRasterOverlays/RasterOverlayTileProvider.h>
+#include <CesiumUtility/CreditSystem.h>
+#include <CesiumUtility/IntrusivePointer.h>
 #include <CesiumUtility/SpanHelper.h>
+
+#include <spdlog/logger.h>
+
+#include <cstdint>
+#include <cstdlib>
+#include <memory>
+#include <optional>
+#include <span>
+#include <string>
+#include <utility>
 
 using namespace CesiumRasterOverlays;
 using namespace CesiumGeospatial;
@@ -42,14 +60,14 @@ public:
 
     result.rectangle = overlayTile.getRectangle();
 
-    ImageCesium& image = result.image.emplace();
+    ImageAsset& image = result.pImage.emplace();
     image.width = 1;
     image.height = 1;
     image.channels = 4;
     image.bytesPerChannel = 1;
     image.pixelData.resize(4);
-    gsl::span<uint32_t> pixels =
-        reintepretCastSpan<uint32_t>(gsl::span(image.pixelData));
+    std::span<uint32_t> pixels =
+        reintepretCastSpan<uint32_t>(std::span(image.pixelData));
     int red = rand() % 255;
     int green = rand() % 255;
     int blue = rand() % 255;
@@ -68,8 +86,7 @@ public:
 DebugColorizeTilesRasterOverlay::DebugColorizeTilesRasterOverlay(
     const std::string& name,
     const RasterOverlayOptions& overlayOptions)
-    : RasterOverlay(name, overlayOptions),
-      _ellipsoid(overlayOptions.ellipsoid.value_or(Ellipsoid::WGS84)) {}
+    : RasterOverlay(name, overlayOptions) {}
 
 CesiumAsync::Future<RasterOverlay::CreateTileProviderResult>
 DebugColorizeTilesRasterOverlay::createTileProvider(
@@ -89,5 +106,5 @@ DebugColorizeTilesRasterOverlay::createTileProvider(
           pAssetAccessor,
           pPrepareRendererResources,
           pLogger,
-          this->_ellipsoid)));
+          this->getOptions().ellipsoid)));
 }

@@ -1,15 +1,25 @@
-#include "CesiumGltf/ExtensionExtMeshFeatures.h"
-#include "CesiumGltf/FeatureIdTextureView.h"
-#include "CesiumGltf/KhrTextureTransform.h"
-#include "CesiumGltf/Model.h"
-#include "CesiumUtility/Math.h"
+#include <CesiumGltf/ExtensionExtMeshFeatures.h>
+#include <CesiumGltf/ExtensionKhrTextureTransform.h>
+#include <CesiumGltf/FeatureId.h>
+#include <CesiumGltf/FeatureIdTexture.h>
+#include <CesiumGltf/FeatureIdTextureView.h>
+#include <CesiumGltf/Image.h>
+#include <CesiumGltf/KhrTextureTransform.h>
+#include <CesiumGltf/Mesh.h>
+#include <CesiumGltf/MeshPrimitive.h>
+#include <CesiumGltf/Model.h>
+#include <CesiumGltf/Sampler.h>
+#include <CesiumGltf/Texture.h>
+#include <CesiumGltf/TextureView.h>
+#include <CesiumUtility/Math.h>
 
-#include <catch2/catch.hpp>
-#include <gsl/span>
+#include <doctest/doctest.h>
 
 #include <climits>
 #include <cstddef>
+#include <cstdint>
 #include <cstring>
+#include <optional>
 #include <vector>
 
 using namespace CesiumGltf;
@@ -75,8 +85,9 @@ TEST_CASE("Test FeatureIdTextureView on feature ID texture with empty image") {
   sampler.wrapT = Sampler::WrapT::CLAMP_TO_EDGE;
 
   Image& image = model.images.emplace_back();
-  image.cesium.width = 0;
-  image.cesium.height = 0;
+  image.pAsset.emplace();
+  image.pAsset->width = 0;
+  image.pAsset->height = 0;
 
   Texture& texture = model.textures.emplace_back();
   texture.sampler = 0;
@@ -107,9 +118,10 @@ TEST_CASE("Test FeatureIdTextureView on feature ID texture with too many bytes "
   sampler.wrapT = Sampler::WrapT::CLAMP_TO_EDGE;
 
   Image& image = model.images.emplace_back();
-  image.cesium.width = 1;
-  image.cesium.height = 1;
-  image.cesium.bytesPerChannel = 2;
+  image.pAsset.emplace();
+  image.pAsset->width = 1;
+  image.pAsset->height = 1;
+  image.pAsset->bytesPerChannel = 2;
 
   Texture& texture = model.textures.emplace_back();
   texture.sampler = 0;
@@ -142,8 +154,9 @@ TEST_CASE(
   sampler.wrapT = Sampler::WrapT::CLAMP_TO_EDGE;
 
   Image& image = model.images.emplace_back();
-  image.cesium.width = 1;
-  image.cesium.height = 1;
+  image.pAsset.emplace();
+  image.pAsset->width = 1;
+  image.pAsset->height = 1;
 
   Texture& texture = model.textures.emplace_back();
   texture.sampler = 0;
@@ -174,8 +187,9 @@ TEST_CASE(
   sampler.wrapT = Sampler::WrapT::CLAMP_TO_EDGE;
 
   Image& image = model.images.emplace_back();
-  image.cesium.width = 1;
-  image.cesium.height = 1;
+  image.pAsset.emplace();
+  image.pAsset->width = 1;
+  image.pAsset->height = 1;
 
   Texture& texture = model.textures.emplace_back();
   texture.sampler = 0;
@@ -206,8 +220,9 @@ TEST_CASE("Test FeatureIdTextureView on feature ID texture with out of range "
   sampler.wrapT = Sampler::WrapT::CLAMP_TO_EDGE;
 
   Image& image = model.images.emplace_back();
-  image.cesium.width = 1;
-  image.cesium.height = 1;
+  image.pAsset.emplace();
+  image.pAsset->width = 1;
+  image.pAsset->height = 1;
 
   Texture& texture = model.textures.emplace_back();
   texture.sampler = 0;
@@ -237,8 +252,9 @@ TEST_CASE("Test FeatureIdTextureView on valid feature ID texture") {
   sampler.wrapT = Sampler::WrapT::CLAMP_TO_EDGE;
 
   Image& image = model.images.emplace_back();
-  image.cesium.width = 1;
-  image.cesium.height = 1;
+  image.pAsset.emplace();
+  image.pAsset->width = 1;
+  image.pAsset->height = 1;
 
   Texture& texture = model.textures.emplace_back();
   texture.sampler = 0;
@@ -269,8 +285,9 @@ TEST_CASE("Test FeatureIdTextureView with applyKhrTextureTransformExtension = "
   sampler.wrapT = Sampler::WrapT::CLAMP_TO_EDGE;
 
   Image& image = model.images.emplace_back();
-  image.cesium.width = 1;
-  image.cesium.height = 1;
+  image.pAsset.emplace();
+  image.pAsset->width = 1;
+  image.pAsset->height = 1;
 
   Texture& texture = model.textures.emplace_back();
   texture.sampler = 0;
@@ -318,8 +335,9 @@ TEST_CASE("Test FeatureIdTextureView with applyKhrTextureTransformExtension = "
   sampler.wrapT = Sampler::WrapT::CLAMP_TO_EDGE;
 
   Image& image = model.images.emplace_back();
-  image.cesium.width = 1;
-  image.cesium.height = 1;
+  image.pAsset.emplace();
+  image.pAsset->width = 1;
+  image.pAsset->height = 1;
 
   Texture& texture = model.textures.emplace_back();
   texture.sampler = 0;
@@ -371,13 +389,14 @@ TEST_CASE("Test FeatureIdTextureView with makeImageCopy = true") {
   sampler.wrapT = Sampler::WrapT::CLAMP_TO_EDGE;
 
   Image& image = model.images.emplace_back();
-  image.cesium.width = 2;
-  image.cesium.height = 2;
-  image.cesium.channels = 1;
-  image.cesium.bytesPerChannel = 1;
-  image.cesium.pixelData.resize(featureIDs.size());
+  image.pAsset.emplace();
+  image.pAsset->width = 2;
+  image.pAsset->height = 2;
+  image.pAsset->channels = 1;
+  image.pAsset->bytesPerChannel = 1;
+  image.pAsset->pixelData.resize(featureIDs.size());
   std::memcpy(
-      image.cesium.pixelData.data(),
+      image.pAsset->pixelData.data(),
       featureIDs.data(),
       featureIDs.size());
 
@@ -403,14 +422,14 @@ TEST_CASE("Test FeatureIdTextureView with makeImageCopy = true") {
 
   // Clear the original image data.
   std::vector<std::byte> emptyData;
-  image.cesium.pixelData.swap(emptyData);
+  image.pAsset->pixelData.swap(emptyData);
 
-  const ImageCesium* pImage = view.getImage();
+  const ImageAsset* pImage = view.getImage();
   REQUIRE(pImage);
-  REQUIRE(pImage->width == image.cesium.width);
-  REQUIRE(pImage->height == image.cesium.height);
-  REQUIRE(pImage->channels == image.cesium.channels);
-  REQUIRE(pImage->bytesPerChannel == image.cesium.bytesPerChannel);
+  REQUIRE(pImage->width == image.pAsset->width);
+  REQUIRE(pImage->height == image.pAsset->height);
+  REQUIRE(pImage->channels == image.pAsset->channels);
+  REQUIRE(pImage->bytesPerChannel == image.pAsset->bytesPerChannel);
   REQUIRE(pImage->pixelData.size() == featureIDs.size());
 }
 
@@ -423,8 +442,9 @@ TEST_CASE("Test getFeatureID on invalid feature ID texture view") {
   sampler.wrapT = Sampler::WrapT::CLAMP_TO_EDGE;
 
   Image& image = model.images.emplace_back();
-  image.cesium.width = 1;
-  image.cesium.height = 1;
+  image.pAsset.emplace();
+  image.pAsset->width = 1;
+  image.pAsset->height = 1;
 
   Texture& texture = model.textures.emplace_back();
   texture.sampler = 0;
@@ -457,13 +477,14 @@ TEST_CASE("Test getFeatureID on valid feature ID texture view") {
   std::vector<uint8_t> featureIDs{1, 2, 0, 7};
 
   Image& image = model.images.emplace_back();
-  image.cesium.width = 2;
-  image.cesium.height = 2;
-  image.cesium.channels = 1;
-  image.cesium.bytesPerChannel = 1;
-  image.cesium.pixelData.resize(featureIDs.size());
+  image.pAsset.emplace();
+  image.pAsset->width = 2;
+  image.pAsset->height = 2;
+  image.pAsset->channels = 1;
+  image.pAsset->bytesPerChannel = 1;
+  image.pAsset->pixelData.resize(featureIDs.size());
   std::memcpy(
-      image.cesium.pixelData.data(),
+      image.pAsset->pixelData.data(),
       featureIDs.data(),
       featureIDs.size());
 
@@ -502,13 +523,14 @@ TEST_CASE("Test getFeatureID on view with applyKhrTextureTransformExtension = "
   std::vector<uint8_t> featureIDs{1, 2, 0, 7};
 
   Image& image = model.images.emplace_back();
-  image.cesium.width = 2;
-  image.cesium.height = 2;
-  image.cesium.channels = 1;
-  image.cesium.bytesPerChannel = 1;
-  image.cesium.pixelData.resize(featureIDs.size());
+  image.pAsset.emplace();
+  image.pAsset->width = 2;
+  image.pAsset->height = 2;
+  image.pAsset->channels = 1;
+  image.pAsset->bytesPerChannel = 1;
+  image.pAsset->pixelData.resize(featureIDs.size());
   std::memcpy(
-      image.cesium.pixelData.data(),
+      image.pAsset->pixelData.data(),
       featureIDs.data(),
       featureIDs.size());
 
@@ -553,13 +575,14 @@ TEST_CASE(
   std::vector<uint8_t> featureIDs{1, 2, 0, 7};
 
   Image& image = model.images.emplace_back();
-  image.cesium.width = 2;
-  image.cesium.height = 2;
-  image.cesium.channels = 1;
-  image.cesium.bytesPerChannel = 1;
-  image.cesium.pixelData.resize(featureIDs.size());
+  image.pAsset.emplace();
+  image.pAsset->width = 2;
+  image.pAsset->height = 2;
+  image.pAsset->channels = 1;
+  image.pAsset->bytesPerChannel = 1;
+  image.pAsset->pixelData.resize(featureIDs.size());
   std::memcpy(
-      image.cesium.pixelData.data(),
+      image.pAsset->pixelData.data(),
       featureIDs.data(),
       featureIDs.size());
 
@@ -609,13 +632,14 @@ TEST_CASE("Test getFeatureId on view with makeImageCopy = true") {
   sampler.wrapT = Sampler::WrapT::CLAMP_TO_EDGE;
 
   Image& image = model.images.emplace_back();
-  image.cesium.width = 2;
-  image.cesium.height = 2;
-  image.cesium.channels = 1;
-  image.cesium.bytesPerChannel = 1;
-  image.cesium.pixelData.resize(featureIDs.size());
+  image.pAsset.emplace();
+  image.pAsset->width = 2;
+  image.pAsset->height = 2;
+  image.pAsset->channels = 1;
+  image.pAsset->bytesPerChannel = 1;
+  image.pAsset->pixelData.resize(featureIDs.size());
   std::memcpy(
-      image.cesium.pixelData.data(),
+      image.pAsset->pixelData.data(),
       featureIDs.data(),
       featureIDs.size());
 
@@ -641,7 +665,7 @@ TEST_CASE("Test getFeatureId on view with makeImageCopy = true") {
 
   // Clear the original image data.
   std::vector<std::byte> emptyData;
-  image.cesium.pixelData.swap(emptyData);
+  image.pAsset->pixelData.swap(emptyData);
 
   REQUIRE(view.getFeatureID(0, 0) == 1);
   REQUIRE(view.getFeatureID(1, 0) == 2);
@@ -660,13 +684,14 @@ TEST_CASE("Test getFeatureID rounds to nearest pixel") {
   std::vector<uint8_t> featureIDs{1, 2, 0, 7};
 
   Image& image = model.images.emplace_back();
-  image.cesium.width = 2;
-  image.cesium.height = 2;
-  image.cesium.channels = 1;
-  image.cesium.bytesPerChannel = 1;
-  image.cesium.pixelData.resize(featureIDs.size());
+  image.pAsset.emplace();
+  image.pAsset->width = 2;
+  image.pAsset->height = 2;
+  image.pAsset->channels = 1;
+  image.pAsset->bytesPerChannel = 1;
+  image.pAsset->pixelData.resize(featureIDs.size());
   std::memcpy(
-      image.cesium.pixelData.data(),
+      image.pAsset->pixelData.data(),
       featureIDs.data(),
       featureIDs.size());
 
@@ -704,12 +729,13 @@ TEST_CASE("Test getFeatureID clamps values") {
   std::vector<uint8_t> featureIDs{1, 2, 0, 7};
 
   Image& image = model.images.emplace_back();
-  image.cesium.width = 2;
-  image.cesium.height = 2;
-  image.cesium.channels = 1;
-  image.cesium.bytesPerChannel = 1;
+  image.pAsset.emplace();
+  image.pAsset->width = 2;
+  image.pAsset->height = 2;
+  image.pAsset->channels = 1;
+  image.pAsset->bytesPerChannel = 1;
 
-  auto& data = image.cesium.pixelData;
+  auto& data = image.pAsset->pixelData;
   data.resize(featureIDs.size() * sizeof(uint8_t));
   std::memcpy(data.data(), featureIDs.data(), data.size());
 
@@ -747,12 +773,13 @@ TEST_CASE("Test getFeatureID handles multiple channels") {
   std::vector<uint16_t> featureIDs{260, 512, 8, 17};
 
   Image& image = model.images.emplace_back();
-  image.cesium.width = 2;
-  image.cesium.height = 2;
-  image.cesium.channels = 2;
-  image.cesium.bytesPerChannel = 1;
+  image.pAsset.emplace();
+  image.pAsset->width = 2;
+  image.pAsset->height = 2;
+  image.pAsset->channels = 2;
+  image.pAsset->bytesPerChannel = 1;
 
-  auto& data = image.cesium.pixelData;
+  auto& data = image.pAsset->pixelData;
   data.resize(featureIDs.size() * sizeof(uint16_t));
   std::memcpy(data.data(), featureIDs.data(), data.size());
 
@@ -788,12 +815,13 @@ TEST_CASE("Check FeatureIdTextureView sampling with different wrap values") {
   std::vector<uint8_t> featureIDs{1, 2, 0, 7};
 
   Image& image = model.images.emplace_back();
-  image.cesium.width = 2;
-  image.cesium.height = 2;
-  image.cesium.channels = 1;
-  image.cesium.bytesPerChannel = 1;
+  image.pAsset.emplace();
+  image.pAsset->width = 2;
+  image.pAsset->height = 2;
+  image.pAsset->channels = 1;
+  image.pAsset->bytesPerChannel = 1;
 
-  auto& data = image.cesium.pixelData;
+  auto& data = image.pAsset->pixelData;
   data.resize(featureIDs.size() * sizeof(uint8_t));
   std::memcpy(data.data(), featureIDs.data(), data.size());
 
@@ -814,7 +842,7 @@ TEST_CASE("Check FeatureIdTextureView sampling with different wrap values") {
 
   FeatureIdTextureView view(model, featureIdTexture);
 
-  SECTION("REPEAT") {
+  SUBCASE("REPEAT") {
     sampler.wrapS = Sampler::WrapS::REPEAT;
     sampler.wrapT = Sampler::WrapT::REPEAT;
 
@@ -830,7 +858,7 @@ TEST_CASE("Check FeatureIdTextureView sampling with different wrap values") {
     }
   }
 
-  SECTION("MIRRORED_REPEAT") {
+  SUBCASE("MIRRORED_REPEAT") {
     sampler.wrapS = Sampler::WrapS::MIRRORED_REPEAT;
     sampler.wrapT = Sampler::WrapT::MIRRORED_REPEAT;
 
@@ -850,7 +878,7 @@ TEST_CASE("Check FeatureIdTextureView sampling with different wrap values") {
     }
   }
 
-  SECTION("CLAMP_TO_EDGE") {
+  SUBCASE("CLAMP_TO_EDGE") {
     sampler.wrapS = Sampler::WrapS::CLAMP_TO_EDGE;
     sampler.wrapT = Sampler::WrapT::CLAMP_TO_EDGE;
 
@@ -866,7 +894,7 @@ TEST_CASE("Check FeatureIdTextureView sampling with different wrap values") {
     }
   }
 
-  SECTION("Mismatched wrap values") {
+  SUBCASE("Mismatched wrap values") {
     sampler.wrapS = Sampler::WrapS::REPEAT;
     sampler.wrapT = Sampler::WrapT::CLAMP_TO_EDGE;
 

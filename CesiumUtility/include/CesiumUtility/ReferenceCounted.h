@@ -5,17 +5,14 @@
 #include <atomic>
 #include <cstdint>
 
-// Germán: The original code uses NDEBUG but that causes problems at least in Xcode
-// If NDEBUG is not defined. The Cesium Native libraries are built in release and
-// the Xcode app is built in debug mode, so NDEBUG is not defined and it checks
-// the thread_id, while the libraries doesn't actually store it.
-#ifndef CESIUM_THREAD_NDEBUG
+#ifndef NDEBUG
 #include <thread>
 #endif
 
 namespace CesiumUtility {
 
-#ifndef CESIUM_THREAD_NDEBUG
+/** \cond Doxygen_Suppress */
+#ifndef NDEBUG
 template <bool isThreadSafe> class ThreadIdHolder;
 
 template <> class ThreadIdHolder<false> {
@@ -28,13 +25,14 @@ template <> class ThreadIdHolder<false> {
 
 template <> class ThreadIdHolder<true> {};
 #endif
+/** \endcond */
 
 /**
  * @brief A reference-counted base class, meant to be used with
  * {@link IntrusivePointer}.
  *
  * Consider using {@link ReferenceCountedThreadSafe} or
- * {@link ReferenceCountedNoThreadSafe} instead of using this class directly.
+ * {@link ReferenceCountedNonThreadSafe} instead of using this class directly.
  *
  * @tparam T The type that is _deriving_ from this class. For example, you
  * should declare your class as
@@ -50,12 +48,11 @@ template <> class ThreadIdHolder<true> {};
  */
 template <typename T, bool isThreadSafe = true>
 class ReferenceCounted
-#ifndef CESIUM_THREAD_NDEBUG
+#ifndef NDEBUG
     : public ThreadIdHolder<isThreadSafe>
 #endif
 {
 public:
-  ReferenceCounted() noexcept {}
   ~ReferenceCounted() noexcept { CESIUM_ASSERT(this->_referenceCount == 0); }
 
   /**
@@ -64,7 +61,7 @@ public:
    * directly.
    */
   void addReference() const /*noexcept*/ {
-#ifndef CESIUM_THREAD_NDEBUG
+#ifndef NDEBUG
     if constexpr (!isThreadSafe) {
       CESIUM_ASSERT(std::this_thread::get_id() == this->_threadID);
     }
@@ -80,7 +77,7 @@ public:
    * directly.
    */
   void releaseReference() const /*noexcept*/ {
-#ifndef CESIUM_THREAD_NDEBUG
+#ifndef NDEBUG
     if constexpr (!isThreadSafe) {
       CESIUM_ASSERT(std::this_thread::get_id() == this->_threadID);
     }
@@ -101,6 +98,9 @@ public:
   }
 
 private:
+  ReferenceCounted() noexcept = default;
+  friend T;
+
   using ThreadSafeCounter = std::atomic<std::int32_t>;
   using NonThreadSafeCounter = std::int32_t;
   using CounterType =

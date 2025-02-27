@@ -8,9 +8,6 @@
 [submodule "extern/glm"]
 	path = extern/glm
 	url = https://github.com/g-truc/glm.git
-[submodule "extern/uriparser"]
-	path = extern/uriparser
-	url = https://github.com/uriparser/uriparser.git
 [submodule "extern/draco"]
 	path = extern/draco
 	url = https://github.com/google/draco.git
@@ -20,9 +17,6 @@
 [submodule "extern/Catch2"]
 	path = extern/Catch2
 	url = https://github.com/catchorg/Catch2.git
-[submodule "extern/GSL"]
-	path = extern/GSL
-	url = https://github.com/microsoft/GSL.git
 [submodule "extern/tinyxml2"]
 	path = extern/tinyxml2
 	url = https://github.com/leethomason/tinyxml2.git
@@ -68,3 +62,12 @@
 [submodule "extern/CSPRNG"]
 	path = extern/CSPRNG
 	url = https://github.com/Duthomhas/CSPRNG.git
+[submodule "extern/ada"]
+	path = extern/ada
+	url = https://github.com/ada-url/ada
+[submodule "extern/fmt"]
+	path = extern/fmt
+	url = https://github.com/fmtlib/fmt
+[submodule "extern/abseil"]
+	path = extern/abseil
+	url = https://github.com/abseil/abseil-cpp.git

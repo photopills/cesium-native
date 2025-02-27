@@ -28,7 +28,7 @@
 
 namespace CesiumIonClient {
 
-void fillWithRandomBytes(const gsl::span<uint8_t>& buffer) {
+void fillWithRandomBytes(const std::span<uint8_t>& buffer) {
 #if IS_UWP
   size_t i = 0;
   if (buffer.size() >= sizeof(uint32_t)) {

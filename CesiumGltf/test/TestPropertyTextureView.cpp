@@ -1,10 +1,31 @@
-#include "CesiumGltf/PropertyTextureView.h"
-#include "CesiumUtility/Math.h"
+#include <CesiumGltf/Class.h>
+#include <CesiumGltf/ClassProperty.h>
+#include <CesiumGltf/ExtensionKhrTextureTransform.h>
+#include <CesiumGltf/ExtensionModelExtStructuralMetadata.h>
+#include <CesiumGltf/Image.h>
+#include <CesiumGltf/Model.h>
+#include <CesiumGltf/PropertyArrayView.h>
+#include <CesiumGltf/PropertyTexture.h>
+#include <CesiumGltf/PropertyTextureProperty.h>
+#include <CesiumGltf/PropertyTexturePropertyView.h>
+#include <CesiumGltf/PropertyTextureView.h>
+#include <CesiumGltf/PropertyTransformations.h>
+#include <CesiumGltf/Sampler.h>
+#include <CesiumGltf/Schema.h>
+#include <CesiumGltf/Texture.h>
+#include <CesiumGltf/TextureView.h>
+#include <CesiumUtility/Math.h>
 
-#include <catch2/catch.hpp>
-#include <gsl/span>
+#include <doctest/doctest.h>
+#include <glm/ext/vector_int2_sized.hpp>
+#include <glm/ext/vector_uint2_sized.hpp>
+#include <glm/ext/vector_uint3_sized.hpp>
 
+#include <array>
 #include <cstddef>
+#include <cstdint>
+#include <cstring>
+#include <optional>
 #include <vector>
 
 using namespace CesiumGltf;
@@ -19,12 +40,13 @@ void addTextureToModel(
     int32_t channels,
     const std::vector<uint8_t>& data) {
   Image& image = model.images.emplace_back();
-  image.cesium.width = width;
-  image.cesium.height = height;
-  image.cesium.channels = channels;
-  image.cesium.bytesPerChannel = 1;
+  image.pAsset.emplace();
+  image.pAsset->width = width;
+  image.pAsset->height = height;
+  image.pAsset->channels = channels;
+  image.pAsset->bytesPerChannel = 1;
 
-  std::vector<std::byte>& imageData = image.cesium.pixelData;
+  std::vector<std::byte>& imageData = image.pAsset->pixelData;
   imageData.resize(data.size());
   std::memcpy(imageData.data(), data.data(), data.size());
 
@@ -182,7 +204,7 @@ TEST_CASE("Test scalar PropertyTextureProperty") {
   REQUIRE(!classProperty->array);
   REQUIRE(!classProperty->normalized);
 
-  SECTION("Access correct type") {
+  SUBCASE("Access correct type") {
     PropertyTexturePropertyView<uint8_t> uint8Property =
         view.getPropertyView<uint8_t>("TestClassProperty");
     REQUIRE(uint8Property.status() == PropertyTexturePropertyViewStatus::Valid);
@@ -200,7 +222,7 @@ TEST_CASE("Test scalar PropertyTextureProperty") {
     }
   }
 
-  SECTION("Access with KHR_texture_transform") {
+  SUBCASE("Access with KHR_texture_transform") {
     TextureViewOptions options;
     options.applyKhrTextureTransformExtension = true;
 
@@ -238,7 +260,7 @@ TEST_CASE("Test scalar PropertyTextureProperty") {
     propertyTextureProperty.extensions.clear();
   }
 
-  SECTION("Access with image copy") {
+  SUBCASE("Access with image copy") {
     TextureViewOptions options;
     options.makeImageCopy = true;
 
@@ -248,7 +270,7 @@ TEST_CASE("Test scalar PropertyTextureProperty") {
 
     // Clear the original image data.
     std::vector<std::byte> emptyData;
-    model.images[model.images.size() - 1].cesium.pixelData.swap(emptyData);
+    model.images[model.images.size() - 1].pAsset->pixelData.swap(emptyData);
 
     std::vector<glm::dvec2> texCoords{
         glm::dvec2(0, 0),
@@ -263,7 +285,7 @@ TEST_CASE("Test scalar PropertyTextureProperty") {
     }
   }
 
-  SECTION("Access wrong type") {
+  SUBCASE("Access wrong type") {
     PropertyTexturePropertyView<glm::u8vec2> u8vec2Invalid =
         view.getPropertyView<glm::u8vec2>("TestClassProperty");
     REQUIRE(
@@ -271,7 +293,7 @@ TEST_CASE("Test scalar PropertyTextureProperty") {
         PropertyTexturePropertyViewStatus::ErrorTypeMismatch);
   }
 
-  SECTION("Access wrong component type") {
+  SUBCASE("Access wrong component type") {
     PropertyTexturePropertyView<uint16_t> uint16Invalid =
         view.getPropertyView<uint16_t>("TestClassProperty");
     REQUIRE(
@@ -291,7 +313,7 @@ TEST_CASE("Test scalar PropertyTextureProperty") {
         PropertyTexturePropertyViewStatus::ErrorComponentTypeMismatch);
   }
 
-  SECTION("Access incorrectly as array") {
+  SUBCASE("Access incorrectly as array") {
     PropertyTexturePropertyView<PropertyArrayView<uint8_t>> arrayInvalid =
         view.getPropertyView<PropertyArrayView<uint8_t>>("TestClassProperty");
     REQUIRE(
@@ -299,7 +321,7 @@ TEST_CASE("Test scalar PropertyTextureProperty") {
         PropertyTexturePropertyViewStatus::ErrorArrayTypeMismatch);
   }
 
-  SECTION("Access incorrectly as normalized") {
+  SUBCASE("Access incorrectly as normalized") {
     PropertyTexturePropertyView<uint8_t, true> normalizedInvalid =
         view.getPropertyView<uint8_t, true>("TestClassProperty");
     REQUIRE(
@@ -307,8 +329,8 @@ TEST_CASE("Test scalar PropertyTextureProperty") {
         PropertyTexturePropertyViewStatus::ErrorNormalizationMismatch);
   }
 
-  SECTION("Channel and type mismatch") {
-    model.images[imageIndex].cesium.channels = 2;
+  SUBCASE("Channel and type mismatch") {
+    model.images[imageIndex].pAsset->channels = 2;
     propertyTextureProperty.channels = {0, 1};
     PropertyTexturePropertyView<uint8_t> uint8Property =
         view.getPropertyView<uint8_t>("TestClassProperty");
@@ -317,7 +339,7 @@ TEST_CASE("Test scalar PropertyTextureProperty") {
         PropertyTexturePropertyViewStatus::ErrorChannelsAndTypeMismatch);
   }
 
-  SECTION("Invalid channel values") {
+  SUBCASE("Invalid channel values") {
     propertyTextureProperty.channels = {5};
     PropertyTexturePropertyView<uint8_t> uint8Property =
         view.getPropertyView<uint8_t>("TestClassProperty");
@@ -326,7 +348,7 @@ TEST_CASE("Test scalar PropertyTextureProperty") {
         PropertyTexturePropertyViewStatus::ErrorInvalidChannels);
   }
 
-  SECTION("Zero channel values") {
+  SUBCASE("Zero channel values") {
     propertyTextureProperty.channels.clear();
     PropertyTexturePropertyView<uint8_t> uint8Property =
         view.getPropertyView<uint8_t>("TestClassProperty");
@@ -335,8 +357,8 @@ TEST_CASE("Test scalar PropertyTextureProperty") {
         PropertyTexturePropertyViewStatus::ErrorInvalidChannels);
   }
 
-  SECTION("Invalid bytes per channel") {
-    model.images[imageIndex].cesium.bytesPerChannel = 2;
+  SUBCASE("Invalid bytes per channel") {
+    model.images[imageIndex].pAsset->bytesPerChannel = 2;
     PropertyTexturePropertyView<uint8_t> uint8Property =
         view.getPropertyView<uint8_t>("TestClassProperty");
     REQUIRE(
@@ -344,8 +366,8 @@ TEST_CASE("Test scalar PropertyTextureProperty") {
         PropertyTexturePropertyViewStatus::ErrorInvalidBytesPerChannel);
   }
 
-  SECTION("Empty image") {
-    model.images[imageIndex].cesium.width = 0;
+  SUBCASE("Empty image") {
+    model.images[imageIndex].pAsset->width = 0;
     PropertyTexturePropertyView<uint8_t> uint8Property =
         view.getPropertyView<uint8_t>("TestClassProperty");
     REQUIRE(
@@ -353,7 +375,7 @@ TEST_CASE("Test scalar PropertyTextureProperty") {
         PropertyTexturePropertyViewStatus::ErrorEmptyImage);
   }
 
-  SECTION("Wrong image index") {
+  SUBCASE("Wrong image index") {
     model.textures[textureIndex].source = 1;
     PropertyTexturePropertyView<uint8_t> uint8Property =
         view.getPropertyView<uint8_t>("TestClassProperty");
@@ -362,7 +384,7 @@ TEST_CASE("Test scalar PropertyTextureProperty") {
         PropertyTexturePropertyViewStatus::ErrorInvalidImage);
   }
 
-  SECTION("Wrong sampler index") {
+  SUBCASE("Wrong sampler index") {
     model.textures[textureIndex].sampler = 1;
     PropertyTexturePropertyView<uint8_t> uint8Property =
         view.getPropertyView<uint8_t>("TestClassProperty");
@@ -371,7 +393,7 @@ TEST_CASE("Test scalar PropertyTextureProperty") {
         PropertyTexturePropertyViewStatus::ErrorInvalidSampler);
   }
 
-  SECTION("Wrong texture index") {
+  SUBCASE("Wrong texture index") {
     propertyTextureProperty.index = 1;
     PropertyTexturePropertyView<uint8_t> uint8Property =
         view.getPropertyView<uint8_t>("TestClassProperty");
@@ -427,7 +449,7 @@ TEST_CASE("Test scalar PropertyTextureProperty (normalized)") {
   REQUIRE(!classProperty->array);
   REQUIRE(classProperty->normalized);
 
-  SECTION("Access correct type") {
+  SUBCASE("Access correct type") {
     PropertyTexturePropertyView<uint8_t, true> uint8Property =
         view.getPropertyView<uint8_t, true>("TestClassProperty");
     REQUIRE(uint8Property.status() == PropertyTexturePropertyViewStatus::Valid);
@@ -445,7 +467,7 @@ TEST_CASE("Test scalar PropertyTextureProperty (normalized)") {
     }
   }
 
-  SECTION("Access with KHR_texture_transform") {
+  SUBCASE("Access with KHR_texture_transform") {
     TextureViewOptions options;
     options.applyKhrTextureTransformExtension = true;
 
@@ -483,7 +505,7 @@ TEST_CASE("Test scalar PropertyTextureProperty (normalized)") {
     propertyTextureProperty.extensions.clear();
   }
 
-  SECTION("Access with image copy") {
+  SUBCASE("Access with image copy") {
     TextureViewOptions options;
     options.makeImageCopy = true;
 
@@ -493,7 +515,7 @@ TEST_CASE("Test scalar PropertyTextureProperty (normalized)") {
 
     // Clear the original image data.
     std::vector<std::byte> emptyData;
-    model.images[model.images.size() - 1].cesium.pixelData.swap(emptyData);
+    model.images[model.images.size() - 1].pAsset->pixelData.swap(emptyData);
 
     std::vector<glm::dvec2> texCoords{
         glm::dvec2(0, 0),
@@ -508,7 +530,7 @@ TEST_CASE("Test scalar PropertyTextureProperty (normalized)") {
     }
   }
 
-  SECTION("Access wrong type") {
+  SUBCASE("Access wrong type") {
     PropertyTexturePropertyView<glm::u8vec2, true> u8vec2Invalid =
         view.getPropertyView<glm::u8vec2, true>("TestClassProperty");
     REQUIRE(
@@ -516,7 +538,7 @@ TEST_CASE("Test scalar PropertyTextureProperty (normalized)") {
         PropertyTexturePropertyViewStatus::ErrorTypeMismatch);
   }
 
-  SECTION("Access wrong component type") {
+  SUBCASE("Access wrong component type") {
     PropertyTexturePropertyView<uint16_t, true> uint16Invalid =
         view.getPropertyView<uint16_t, true>("TestClassProperty");
     REQUIRE(
@@ -530,7 +552,7 @@ TEST_CASE("Test scalar PropertyTextureProperty (normalized)") {
         PropertyTexturePropertyViewStatus::ErrorComponentTypeMismatch);
   }
 
-  SECTION("Access incorrectly as array") {
+  SUBCASE("Access incorrectly as array") {
     PropertyTexturePropertyView<PropertyArrayView<uint8_t>, true> arrayInvalid =
         view.getPropertyView<PropertyArrayView<uint8_t>, true>(
             "TestClassProperty");
@@ -539,7 +561,7 @@ TEST_CASE("Test scalar PropertyTextureProperty (normalized)") {
         PropertyTexturePropertyViewStatus::ErrorArrayTypeMismatch);
   }
 
-  SECTION("Access incorrectly as non-normalized") {
+  SUBCASE("Access incorrectly as non-normalized") {
     PropertyTexturePropertyView<uint8_t> normalizedInvalid =
         view.getPropertyView<uint8_t>("TestClassProperty");
     REQUIRE(
@@ -547,7 +569,7 @@ TEST_CASE("Test scalar PropertyTextureProperty (normalized)") {
         PropertyTexturePropertyViewStatus::ErrorNormalizationMismatch);
   }
 
-  SECTION("Access incorrectly as double") {
+  SUBCASE("Access incorrectly as double") {
     PropertyTexturePropertyView<double> doubleInvalid =
         view.getPropertyView<double>("TestClassProperty");
     REQUIRE(
@@ -555,8 +577,8 @@ TEST_CASE("Test scalar PropertyTextureProperty (normalized)") {
         PropertyTexturePropertyViewStatus::ErrorComponentTypeMismatch);
   }
 
-  SECTION("Channel and type mismatch") {
-    model.images[imageIndex].cesium.channels = 2;
+  SUBCASE("Channel and type mismatch") {
+    model.images[imageIndex].pAsset->channels = 2;
     propertyTextureProperty.channels = {0, 1};
     PropertyTexturePropertyView<uint8_t, true> uint8Property =
         view.getPropertyView<uint8_t, true>("TestClassProperty");
@@ -616,7 +638,7 @@ TEST_CASE("Test vecN PropertyTextureProperty") {
   REQUIRE(!classProperty->array);
   REQUIRE(!classProperty->normalized);
 
-  SECTION("Access correct type") {
+  SUBCASE("Access correct type") {
     PropertyTexturePropertyView<glm::u8vec2> u8vec2Property =
         view.getPropertyView<glm::u8vec2>("TestClassProperty");
     REQUIRE(
@@ -635,7 +657,7 @@ TEST_CASE("Test vecN PropertyTextureProperty") {
     }
   }
 
-  SECTION("Access with KHR_texture_transform") {
+  SUBCASE("Access with KHR_texture_transform") {
     TextureViewOptions options;
     options.applyKhrTextureTransformExtension = true;
 
@@ -678,7 +700,7 @@ TEST_CASE("Test vecN PropertyTextureProperty") {
     propertyTextureProperty.extensions.clear();
   }
 
-  SECTION("Access with image copy") {
+  SUBCASE("Access with image copy") {
     TextureViewOptions options;
     options.makeImageCopy = true;
 
@@ -689,7 +711,7 @@ TEST_CASE("Test vecN PropertyTextureProperty") {
 
     // Clear the original image data.
     std::vector<std::byte> emptyData;
-    model.images[model.images.size() - 1].cesium.pixelData.swap(emptyData);
+    model.images[model.images.size() - 1].pAsset->pixelData.swap(emptyData);
 
     std::vector<glm::dvec2> texCoords{
         glm::dvec2(0, 0),
@@ -704,7 +726,7 @@ TEST_CASE("Test vecN PropertyTextureProperty") {
     }
   }
 
-  SECTION("Access wrong type") {
+  SUBCASE("Access wrong type") {
     PropertyTexturePropertyView<uint8_t> uint8Invalid =
         view.getPropertyView<uint8_t>("TestClassProperty");
     REQUIRE(
@@ -718,7 +740,7 @@ TEST_CASE("Test vecN PropertyTextureProperty") {
         PropertyTexturePropertyViewStatus::ErrorTypeMismatch);
   }
 
-  SECTION("Access wrong component type") {
+  SUBCASE("Access wrong component type") {
     PropertyTexturePropertyView<glm::u16vec2> u16vec2Invalid =
         view.getPropertyView<glm::u16vec2>("TestClassProperty");
     REQUIRE(
@@ -732,7 +754,7 @@ TEST_CASE("Test vecN PropertyTextureProperty") {
         PropertyTexturePropertyViewStatus::ErrorComponentTypeMismatch);
   }
 
-  SECTION("Access incorrectly as array") {
+  SUBCASE("Access incorrectly as array") {
     PropertyTexturePropertyView<PropertyArrayView<glm::u8vec2>> arrayInvalid =
         view.getPropertyView<PropertyArrayView<glm::u8vec2>>(
             "TestClassProperty");
@@ -741,7 +763,7 @@ TEST_CASE("Test vecN PropertyTextureProperty") {
         PropertyTexturePropertyViewStatus::ErrorArrayTypeMismatch);
   }
 
-  SECTION("Access incorrectly as normalized") {
+  SUBCASE("Access incorrectly as normalized") {
     PropertyTexturePropertyView<glm::u8vec2, true> normalizedInvalid =
         view.getPropertyView<glm::u8vec2, true>("TestClassProperty");
     REQUIRE(
@@ -749,8 +771,8 @@ TEST_CASE("Test vecN PropertyTextureProperty") {
         PropertyTexturePropertyViewStatus::ErrorNormalizationMismatch);
   }
 
-  SECTION("Channel and type mismatch") {
-    model.images[imageIndex].cesium.channels = 4;
+  SUBCASE("Channel and type mismatch") {
+    model.images[imageIndex].pAsset->channels = 4;
     propertyTextureProperty.channels = {0, 1, 2, 3};
     PropertyTexturePropertyView<glm::u8vec2> u8vec2Property =
         view.getPropertyView<glm::u8vec2>("TestClassProperty");
@@ -759,7 +781,7 @@ TEST_CASE("Test vecN PropertyTextureProperty") {
         PropertyTexturePropertyViewStatus::ErrorChannelsAndTypeMismatch);
   }
 
-  SECTION("Invalid channel values") {
+  SUBCASE("Invalid channel values") {
     propertyTextureProperty.channels = {0, 4};
     PropertyTexturePropertyView<glm::u8vec2> u8vec2Property =
         view.getPropertyView<glm::u8vec2>("TestClassProperty");
@@ -768,8 +790,8 @@ TEST_CASE("Test vecN PropertyTextureProperty") {
         PropertyTexturePropertyViewStatus::ErrorInvalidChannels);
   }
 
-  SECTION("Invalid bytes per channel") {
-    model.images[imageIndex].cesium.bytesPerChannel = 2;
+  SUBCASE("Invalid bytes per channel") {
+    model.images[imageIndex].pAsset->bytesPerChannel = 2;
     PropertyTexturePropertyView<glm::u8vec2> u8vec2Property =
         view.getPropertyView<glm::u8vec2>("TestClassProperty");
     REQUIRE(
@@ -829,7 +851,7 @@ TEST_CASE("Test vecN PropertyTextureProperty (normalized)") {
   REQUIRE(!classProperty->array);
   REQUIRE(classProperty->normalized);
 
-  SECTION("Access correct type") {
+  SUBCASE("Access correct type") {
     PropertyTexturePropertyView<glm::u8vec2, true> u8vec2Property =
         view.getPropertyView<glm::u8vec2, true>("TestClassProperty");
     REQUIRE(
@@ -847,7 +869,7 @@ TEST_CASE("Test vecN PropertyTextureProperty (normalized)") {
     }
   }
 
-  SECTION("Access with KHR_texture_transform") {
+  SUBCASE("Access with KHR_texture_transform") {
     TextureViewOptions options;
     options.applyKhrTextureTransformExtension = true;
 
@@ -892,7 +914,7 @@ TEST_CASE("Test vecN PropertyTextureProperty (normalized)") {
     propertyTextureProperty.extensions.clear();
   }
 
-  SECTION("Access with image copy") {
+  SUBCASE("Access with image copy") {
     TextureViewOptions options;
     options.makeImageCopy = true;
 
@@ -903,7 +925,7 @@ TEST_CASE("Test vecN PropertyTextureProperty (normalized)") {
 
     // Clear the original image data.
     std::vector<std::byte> emptyData;
-    model.images[model.images.size() - 1].cesium.pixelData.swap(emptyData);
+    model.images[model.images.size() - 1].pAsset->pixelData.swap(emptyData);
 
     std::vector<glm::dvec2> texCoords{
         glm::dvec2(0, 0),
@@ -918,7 +940,7 @@ TEST_CASE("Test vecN PropertyTextureProperty (normalized)") {
     }
   }
 
-  SECTION("Access wrong type") {
+  SUBCASE("Access wrong type") {
     PropertyTexturePropertyView<uint8_t, true> uint8Invalid =
         view.getPropertyView<uint8_t, true>("TestClassProperty");
     REQUIRE(
@@ -932,7 +954,7 @@ TEST_CASE("Test vecN PropertyTextureProperty (normalized)") {
         PropertyTexturePropertyViewStatus::ErrorTypeMismatch);
   }
 
-  SECTION("Access wrong component type") {
+  SUBCASE("Access wrong component type") {
     PropertyTexturePropertyView<glm::u16vec2, true> u16vec2Invalid =
         view.getPropertyView<glm::u16vec2, true>("TestClassProperty");
     REQUIRE(
@@ -946,7 +968,7 @@ TEST_CASE("Test vecN PropertyTextureProperty (normalized)") {
         PropertyTexturePropertyViewStatus::ErrorComponentTypeMismatch);
   }
 
-  SECTION("Access incorrectly as array") {
+  SUBCASE("Access incorrectly as array") {
     PropertyTexturePropertyView<PropertyArrayView<glm::u8vec2>, true>
         arrayInvalid =
             view.getPropertyView<PropertyArrayView<glm::u8vec2>, true>(
@@ -956,7 +978,7 @@ TEST_CASE("Test vecN PropertyTextureProperty (normalized)") {
         PropertyTexturePropertyViewStatus::ErrorArrayTypeMismatch);
   }
 
-  SECTION("Access incorrectly as non-normalized") {
+  SUBCASE("Access incorrectly as non-normalized") {
     PropertyTexturePropertyView<glm::u8vec2> normalizedInvalid =
         view.getPropertyView<glm::u8vec2>("TestClassProperty");
     REQUIRE(
@@ -964,7 +986,7 @@ TEST_CASE("Test vecN PropertyTextureProperty (normalized)") {
         PropertyTexturePropertyViewStatus::ErrorNormalizationMismatch);
   }
 
-  SECTION("Access incorrectly as dvec2") {
+  SUBCASE("Access incorrectly as dvec2") {
     PropertyTexturePropertyView<glm::dvec2> dvec2Invalid =
         view.getPropertyView<glm::dvec2>("TestClassProperty");
     REQUIRE(
@@ -972,8 +994,8 @@ TEST_CASE("Test vecN PropertyTextureProperty (normalized)") {
         PropertyTexturePropertyViewStatus::ErrorComponentTypeMismatch);
   }
 
-  SECTION("Channel and type mismatch") {
-    model.images[imageIndex].cesium.channels = 4;
+  SUBCASE("Channel and type mismatch") {
+    model.images[imageIndex].pAsset->channels = 4;
     propertyTextureProperty.channels = {0, 1, 2, 3};
     PropertyTexturePropertyView<glm::u8vec2, true> u8vec2Property =
         view.getPropertyView<glm::u8vec2, true>("TestClassProperty");
@@ -1043,7 +1065,7 @@ TEST_CASE("Test array PropertyTextureProperty") {
   REQUIRE(classProperty->count == 3);
   REQUIRE(!classProperty->normalized);
 
-  SECTION("Access correct type") {
+  SUBCASE("Access correct type") {
     PropertyTexturePropertyView<PropertyArrayView<uint8_t>> uint8ArrayProperty =
         view.getPropertyView<PropertyArrayView<uint8_t>>("TestClassProperty");
     REQUIRE(
@@ -1076,7 +1098,7 @@ TEST_CASE("Test array PropertyTextureProperty") {
     }
   }
 
-  SECTION("Access with KHR_texture_transform") {
+  SUBCASE("Access with KHR_texture_transform") {
     TextureViewOptions options;
     options.applyKhrTextureTransformExtension = true;
 
@@ -1137,7 +1159,7 @@ TEST_CASE("Test array PropertyTextureProperty") {
     propertyTextureProperty.extensions.clear();
   }
 
-  SECTION("Access with image copy") {
+  SUBCASE("Access with image copy") {
     TextureViewOptions options;
     options.makeImageCopy = true;
 
@@ -1151,7 +1173,7 @@ TEST_CASE("Test array PropertyTextureProperty") {
 
     // Clear the original image data.
     std::vector<std::byte> emptyData;
-    model.images[model.images.size() - 1].cesium.pixelData.swap(emptyData);
+    model.images[model.images.size() - 1].pAsset->pixelData.swap(emptyData);
 
     std::vector<glm::dvec2> texCoords{
         glm::dvec2(0, 0),
@@ -1180,7 +1202,7 @@ TEST_CASE("Test array PropertyTextureProperty") {
     }
   }
 
-  SECTION("Access wrong component type") {
+  SUBCASE("Access wrong component type") {
     PropertyTexturePropertyView<PropertyArrayView<int8_t>> int8ArrayInvalid =
         view.getPropertyView<PropertyArrayView<int8_t>>("TestClassProperty");
     REQUIRE(
@@ -1195,7 +1217,7 @@ TEST_CASE("Test array PropertyTextureProperty") {
         PropertyTexturePropertyViewStatus::ErrorComponentTypeMismatch);
   }
 
-  SECTION("Access incorrectly as non-array") {
+  SUBCASE("Access incorrectly as non-array") {
     PropertyTexturePropertyView<uint8_t> uint8Invalid =
         view.getPropertyView<uint8_t>("TestClassProperty");
     REQUIRE(
@@ -1209,7 +1231,7 @@ TEST_CASE("Test array PropertyTextureProperty") {
         PropertyTexturePropertyViewStatus::ErrorArrayTypeMismatch);
   }
 
-  SECTION("Access incorrectly as normalized") {
+  SUBCASE("Access incorrectly as normalized") {
     PropertyTexturePropertyView<PropertyArrayView<uint8_t>, true>
         normalizedInvalid =
             view.getPropertyView<PropertyArrayView<uint8_t>, true>(
@@ -1219,8 +1241,8 @@ TEST_CASE("Test array PropertyTextureProperty") {
         PropertyTexturePropertyViewStatus::ErrorNormalizationMismatch);
   }
 
-  SECTION("Channel and type mismatch") {
-    model.images[imageIndex].cesium.channels = 4;
+  SUBCASE("Channel and type mismatch") {
+    model.images[imageIndex].pAsset->channels = 4;
     propertyTextureProperty.channels = {0, 1, 2, 3};
     PropertyTexturePropertyView<PropertyArrayView<uint8_t>> uint8ArrayProperty =
         view.getPropertyView<PropertyArrayView<uint8_t>>("TestClassProperty");
@@ -1229,7 +1251,7 @@ TEST_CASE("Test array PropertyTextureProperty") {
         PropertyTexturePropertyViewStatus::ErrorChannelsAndTypeMismatch);
   }
 
-  SECTION("Invalid channel values") {
+  SUBCASE("Invalid channel values") {
     propertyTextureProperty.channels = {0, 4, 1};
     PropertyTexturePropertyView<PropertyArrayView<uint8_t>> uint8ArrayProperty =
         view.getPropertyView<PropertyArrayView<uint8_t>>("TestClassProperty");
@@ -1238,8 +1260,8 @@ TEST_CASE("Test array PropertyTextureProperty") {
         PropertyTexturePropertyViewStatus::ErrorInvalidChannels);
   }
 
-  SECTION("Invalid bytes per channel") {
-    model.images[imageIndex].cesium.bytesPerChannel = 2;
+  SUBCASE("Invalid bytes per channel") {
+    model.images[imageIndex].pAsset->bytesPerChannel = 2;
     PropertyTexturePropertyView<PropertyArrayView<uint8_t>> uint8ArrayProperty =
         view.getPropertyView<PropertyArrayView<uint8_t>>("TestClassProperty");
     REQUIRE(
@@ -1310,7 +1332,7 @@ TEST_CASE("Test array PropertyTextureProperty (normalized)") {
   REQUIRE(classProperty->count == 3);
   REQUIRE(classProperty->normalized);
 
-  SECTION("Access correct type") {
+  SUBCASE("Access correct type") {
     PropertyTexturePropertyView<PropertyArrayView<uint8_t>, true>
         uint8ArrayProperty =
             view.getPropertyView<PropertyArrayView<uint8_t>, true>(
@@ -1345,7 +1367,7 @@ TEST_CASE("Test array PropertyTextureProperty (normalized)") {
     }
   }
 
-  SECTION("Access with KHR_texture_transform") {
+  SUBCASE("Access with KHR_texture_transform") {
     TextureViewOptions options;
     options.applyKhrTextureTransformExtension = true;
 
@@ -1407,7 +1429,7 @@ TEST_CASE("Test array PropertyTextureProperty (normalized)") {
     propertyTextureProperty.extensions.clear();
   }
 
-  SECTION("Access with image copy") {
+  SUBCASE("Access with image copy") {
     TextureViewOptions options;
     options.makeImageCopy = true;
 
@@ -1422,7 +1444,7 @@ TEST_CASE("Test array PropertyTextureProperty (normalized)") {
 
     // Clear the original image data.
     std::vector<std::byte> emptyData;
-    model.images[model.images.size() - 1].cesium.pixelData.swap(emptyData);
+    model.images[model.images.size() - 1].pAsset->pixelData.swap(emptyData);
 
     std::vector<glm::dvec2> texCoords{
         glm::dvec2(0, 0),
@@ -1451,7 +1473,7 @@ TEST_CASE("Test array PropertyTextureProperty (normalized)") {
     }
   }
 
-  SECTION("Access wrong component type") {
+  SUBCASE("Access wrong component type") {
     PropertyTexturePropertyView<PropertyArrayView<int8_t>, true>
         int8ArrayInvalid =
             view.getPropertyView<PropertyArrayView<int8_t>, true>(
@@ -1469,7 +1491,7 @@ TEST_CASE("Test array PropertyTextureProperty (normalized)") {
         PropertyTexturePropertyViewStatus::ErrorComponentTypeMismatch);
   }
 
-  SECTION("Access incorrectly as non-array") {
+  SUBCASE("Access incorrectly as non-array") {
     PropertyTexturePropertyView<uint8_t, true> uint8Invalid =
         view.getPropertyView<uint8_t, true>("TestClassProperty");
     REQUIRE(
@@ -1483,7 +1505,7 @@ TEST_CASE("Test array PropertyTextureProperty (normalized)") {
         PropertyTexturePropertyViewStatus::ErrorArrayTypeMismatch);
   }
 
-  SECTION("Access incorrectly as normalized") {
+  SUBCASE("Access incorrectly as normalized") {
     PropertyTexturePropertyView<PropertyArrayView<uint8_t>> normalizedInvalid =
         view.getPropertyView<PropertyArrayView<uint8_t>>("TestClassProperty");
     REQUIRE(
@@ -1491,8 +1513,8 @@ TEST_CASE("Test array PropertyTextureProperty (normalized)") {
         PropertyTexturePropertyViewStatus::ErrorNormalizationMismatch);
   }
 
-  SECTION("Channel and type mismatch") {
-    model.images[imageIndex].cesium.channels = 4;
+  SUBCASE("Channel and type mismatch") {
+    model.images[imageIndex].pAsset->channels = 4;
     propertyTextureProperty.channels = {0, 1, 2, 3};
     PropertyTexturePropertyView<PropertyArrayView<uint8_t>, true>
         uint8ArrayProperty =
@@ -1576,7 +1598,7 @@ TEST_CASE("Test with PropertyTextureProperty offset, scale, min, max") {
       glm::dvec2(0, 0.5),
       glm::dvec2(0.5, 0.5)};
 
-  SECTION("Use class property values") {
+  SUBCASE("Use class property values") {
     PropertyTexturePropertyView<float> property =
         view.getPropertyView<float>("TestClassProperty");
     REQUIRE(property.status() == PropertyTexturePropertyViewStatus::Valid);
@@ -1600,7 +1622,7 @@ TEST_CASE("Test with PropertyTextureProperty offset, scale, min, max") {
     }
   }
 
-  SECTION("Use own property values") {
+  SUBCASE("Use own property values") {
     const float newOffset = 1.0f;
     const float newScale = -1.0f;
     const float newMin = -3.0f;
@@ -1695,7 +1717,7 @@ TEST_CASE(
       glm::dvec2(0, 0.5),
       glm::dvec2(0.5, 0.5)};
 
-  SECTION("Use class property values") {
+  SUBCASE("Use class property values") {
     PropertyTexturePropertyView<uint8_t, true> property =
         view.getPropertyView<uint8_t, true>("TestClassProperty");
     REQUIRE(property.status() == PropertyTexturePropertyViewStatus::Valid);
@@ -1712,7 +1734,7 @@ TEST_CASE(
     }
   }
 
-  SECTION("Use own property values") {
+  SUBCASE("Use own property values") {
     const double newOffset = 2.0;
     const double newScale = 5.0;
     const double newMin = 10.0;
@@ -1792,7 +1814,7 @@ TEST_CASE("Test with PropertyTextureProperty noData") {
       glm::dvec2(0, 0.5),
       glm::dvec2(0.5, 0.5)};
 
-  SECTION("Without default value") {
+  SUBCASE("Without default value") {
     PropertyTexturePropertyView<uint8_t> property =
         view.getPropertyView<uint8_t>("TestClassProperty");
     REQUIRE(property.status() == PropertyTexturePropertyViewStatus::Valid);
@@ -1811,7 +1833,7 @@ TEST_CASE("Test with PropertyTextureProperty noData") {
     }
   }
 
-  SECTION("With default value") {
+  SUBCASE("With default value") {
     const uint8_t defaultValue = 255;
     testClassProperty.defaultProperty = defaultValue;
 
@@ -1887,7 +1909,7 @@ TEST_CASE("Test with PropertyTextureProperty noData (normalized)") {
       glm::dvec2(0, 0.5),
       glm::dvec2(0.5, 0.5)};
 
-  SECTION("Without default value") {
+  SUBCASE("Without default value") {
     PropertyTexturePropertyView<uint8_t, true> property =
         view.getPropertyView<uint8_t, true>("TestClassProperty");
     REQUIRE(property.status() == PropertyTexturePropertyViewStatus::Valid);
@@ -1906,7 +1928,7 @@ TEST_CASE("Test with PropertyTextureProperty noData (normalized)") {
     }
   }
 
-  SECTION("With default value") {
+  SUBCASE("With default value") {
     const double defaultValue = -1.0;
     testClassProperty.defaultProperty = defaultValue;
 
@@ -1960,7 +1982,7 @@ TEST_CASE(
   REQUIRE(!classProperty->normalized);
   REQUIRE(classProperty->defaultProperty);
 
-  SECTION("Access correct type") {
+  SUBCASE("Access correct type") {
     PropertyTexturePropertyView<uint8_t> uint8Property =
         view.getPropertyView<uint8_t>("TestClassProperty");
     REQUIRE(
@@ -1980,7 +2002,7 @@ TEST_CASE(
     }
   }
 
-  SECTION("Access wrong type") {
+  SUBCASE("Access wrong type") {
     PropertyTexturePropertyView<glm::u8vec2> u8vec2Invalid =
         view.getPropertyView<glm::u8vec2>("TestClassProperty");
     REQUIRE(
@@ -1988,7 +2010,7 @@ TEST_CASE(
         PropertyTexturePropertyViewStatus::ErrorTypeMismatch);
   }
 
-  SECTION("Access wrong component type") {
+  SUBCASE("Access wrong component type") {
     PropertyTexturePropertyView<uint16_t> uint16Invalid =
         view.getPropertyView<uint16_t>("TestClassProperty");
     REQUIRE(
@@ -1996,7 +2018,7 @@ TEST_CASE(
         PropertyTexturePropertyViewStatus::ErrorComponentTypeMismatch);
   }
 
-  SECTION("Access incorrectly as normalized") {
+  SUBCASE("Access incorrectly as normalized") {
     PropertyTexturePropertyView<uint8_t, true> normalizedInvalid =
         view.getPropertyView<uint8_t, true>("TestClassProperty");
     REQUIRE(
@@ -2004,7 +2026,7 @@ TEST_CASE(
         PropertyTexturePropertyViewStatus::ErrorNormalizationMismatch);
   }
 
-  SECTION("Invalid default value") {
+  SUBCASE("Invalid default value") {
     testClassProperty.defaultProperty = "not a number";
     PropertyTexturePropertyView<uint8_t> uint8Property =
         view.getPropertyView<uint8_t>("TestClassProperty");
@@ -2013,7 +2035,7 @@ TEST_CASE(
         PropertyTexturePropertyViewStatus::ErrorInvalidDefaultValue);
   }
 
-  SECTION("No default value") {
+  SUBCASE("No default value") {
     testClassProperty.defaultProperty.reset();
     PropertyTexturePropertyView<uint8_t> uint8Property =
         view.getPropertyView<uint8_t>("TestClassProperty");
@@ -2195,7 +2217,7 @@ TEST_CASE("Test callback for scalar PropertyTextureProperty") {
 
   std::vector<int16_t> expected{-1, 268, 542, -256};
 
-  SECTION("Works") {
+  SUBCASE("Works") {
     uint32_t invokedCallbackCount = 0;
     view.getPropertyView(
         "TestClassProperty",
@@ -2224,7 +2246,7 @@ TEST_CASE("Test callback for scalar PropertyTextureProperty") {
     REQUIRE(invokedCallbackCount == 1);
   }
 
-  SECTION("Works with options") {
+  SUBCASE("Works with options") {
     TextureViewOptions options;
     options.makeImageCopy = true;
 
@@ -2244,7 +2266,7 @@ TEST_CASE("Test callback for scalar PropertyTextureProperty") {
 
             // Clear the original image data.
             std::vector<std::byte> emptyData;
-            model.images[model.images.size() - 1].cesium.pixelData.swap(
+            model.images[model.images.size() - 1].pAsset->pixelData.swap(
                 emptyData);
 
             for (size_t i = 0; i < expected.size(); ++i) {
@@ -2316,7 +2338,7 @@ TEST_CASE("Test callback for scalar PropertyTextureProperty (normalized)") {
 
   std::vector<int16_t> expected{-1, 268, 542, -256};
 
-  SECTION("Works") {
+  SUBCASE("Works") {
     uint32_t invokedCallbackCount = 0;
     view.getPropertyView(
         "TestClassProperty",
@@ -2346,7 +2368,7 @@ TEST_CASE("Test callback for scalar PropertyTextureProperty (normalized)") {
     REQUIRE(invokedCallbackCount == 1);
   }
 
-  SECTION("Works with options") {
+  SUBCASE("Works with options") {
     TextureViewOptions options;
     options.makeImageCopy = true;
 
@@ -2366,7 +2388,7 @@ TEST_CASE("Test callback for scalar PropertyTextureProperty (normalized)") {
 
             // Clear the original image data.
             std::vector<std::byte> emptyData;
-            model.images[model.images.size() - 1].cesium.pixelData.swap(
+            model.images[model.images.size() - 1].pAsset->pixelData.swap(
                 emptyData);
 
             for (size_t i = 0; i < expected.size(); ++i) {
@@ -2448,7 +2470,7 @@ TEST_CASE("Test callback for vecN PropertyTextureProperty") {
       glm::dvec2(0, 0.5),
       glm::dvec2(0.5, 0.5)};
 
-  SECTION("Works") {
+  SUBCASE("Works") {
     uint32_t invokedCallbackCount = 0;
     view.getPropertyView(
         "TestClassProperty",
@@ -2477,7 +2499,7 @@ TEST_CASE("Test callback for vecN PropertyTextureProperty") {
     REQUIRE(invokedCallbackCount == 1);
   }
 
-  SECTION("Works with options") {
+  SUBCASE("Works with options") {
     TextureViewOptions options;
     options.makeImageCopy = true;
 
@@ -2497,7 +2519,7 @@ TEST_CASE("Test callback for vecN PropertyTextureProperty") {
 
             // Clear the original image data.
             std::vector<std::byte> emptyData;
-            model.images[model.images.size() - 1].cesium.pixelData.swap(
+            model.images[model.images.size() - 1].pAsset->pixelData.swap(
                 emptyData);
 
             for (size_t i = 0; i < expected.size(); ++i) {
@@ -2579,7 +2601,7 @@ TEST_CASE("Test callback for vecN PropertyTextureProperty (normalized)") {
       glm::dvec2(0, 0.5),
       glm::dvec2(0.5, 0.5)};
 
-  SECTION("Works") {
+  SUBCASE("Works") {
     uint32_t invokedCallbackCount = 0;
     view.getPropertyView(
         "TestClassProperty",
@@ -2609,7 +2631,7 @@ TEST_CASE("Test callback for vecN PropertyTextureProperty (normalized)") {
     REQUIRE(invokedCallbackCount == 1);
   }
 
-  SECTION("Works with options") {
+  SUBCASE("Works with options") {
     TextureViewOptions options;
     options.makeImageCopy = true;
 
@@ -2629,7 +2651,7 @@ TEST_CASE("Test callback for vecN PropertyTextureProperty (normalized)") {
 
             // Clear the original image data.
             std::vector<std::byte> emptyData;
-            model.images[model.images.size() - 1].cesium.pixelData.swap(
+            model.images[model.images.size() - 1].pAsset->pixelData.swap(
                 emptyData);
 
             for (size_t i = 0; i < expected.size(); ++i) {
@@ -2713,7 +2735,7 @@ TEST_CASE("Test callback for array PropertyTextureProperty") {
       glm::dvec2(0, 0.5),
       glm::dvec2(0.5, 0.5)};
 
-  SECTION("Works") {
+  SUBCASE("Works") {
     uint32_t invokedCallbackCount = 0;
     view.getPropertyView(
         "TestClassProperty",
@@ -2761,7 +2783,7 @@ TEST_CASE("Test callback for array PropertyTextureProperty") {
     REQUIRE(invokedCallbackCount == 1);
   }
 
-  SECTION("Works with options") {
+  SUBCASE("Works with options") {
     TextureViewOptions options;
     options.makeImageCopy = true;
 
@@ -2782,7 +2804,7 @@ TEST_CASE("Test callback for array PropertyTextureProperty") {
 
             // Clear the original image data.
             std::vector<std::byte> emptyData;
-            model.images[model.images.size() - 1].cesium.pixelData.swap(
+            model.images[model.images.size() - 1].pAsset->pixelData.swap(
                 emptyData);
 
             for (size_t i = 0; i < expected.size(); ++i) {
@@ -2882,7 +2904,7 @@ TEST_CASE("Test callback for array PropertyTextureProperty (normalized)") {
       glm::dvec2(0, 0.5),
       glm::dvec2(0.5, 0.5)};
 
-  SECTION("Works") {
+  SUBCASE("Works") {
     uint32_t invokedCallbackCount = 0;
     view.getPropertyView(
         "TestClassProperty",
@@ -2930,7 +2952,7 @@ TEST_CASE("Test callback for array PropertyTextureProperty (normalized)") {
     REQUIRE(invokedCallbackCount == 1);
   }
 
-  SECTION("Works with options") {
+  SUBCASE("Works with options") {
     TextureViewOptions options;
     options.makeImageCopy = true;
 
@@ -2952,7 +2974,7 @@ TEST_CASE("Test callback for array PropertyTextureProperty (normalized)") {
 
             // Clear the original image data.
             std::vector<std::byte> emptyData;
-            model.images[model.images.size() - 1].cesium.pixelData.swap(
+            model.images[model.images.size() - 1].pAsset->pixelData.swap(
                 emptyData);
 
             for (size_t i = 0; i < expected.size(); ++i) {

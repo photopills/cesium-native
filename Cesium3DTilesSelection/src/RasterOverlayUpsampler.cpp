@@ -2,14 +2,26 @@
 
 #include <Cesium3DTilesSelection/RasterMappedTo3DTile.h>
 #include <Cesium3DTilesSelection/Tile.h>
+#include <Cesium3DTilesSelection/TileContent.h>
+#include <Cesium3DTilesSelection/TileLoadResult.h>
+#include <Cesium3DTilesSelection/TilesetContentLoader.h>
+#include <CesiumAsync/Future.h>
+#include <CesiumGeometry/Axis.h>
 #include <CesiumGeometry/QuadtreeTileID.h>
+#include <CesiumGeospatial/Ellipsoid.h>
 #include <CesiumGeospatial/Projection.h>
 #include <CesiumRasterOverlays/RasterOverlay.h>
 #include <CesiumRasterOverlays/RasterOverlayTileProvider.h>
 #include <CesiumRasterOverlays/RasterOverlayUtilities.h>
 #include <CesiumUtility/Assert.h>
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <optional>
+#include <utility>
 #include <variant>
+#include <vector>
 
 using namespace CesiumRasterOverlays;
 
@@ -19,7 +31,7 @@ RasterOverlayUpsampler::loadTileContent(const TileLoadInput& loadInput) {
   const Tile* pParent = loadInput.tile.getParent();
   if (pParent == nullptr) {
     return loadInput.asyncSystem.createResolvedFuture(
-        TileLoadResult::createFailedResult(nullptr));
+        TileLoadResult::createFailedResult(loadInput.pAssetAccessor, nullptr));
   }
 
   const CesiumGeometry::UpsampledQuadtreeNode* pTileID =
@@ -28,7 +40,7 @@ RasterOverlayUpsampler::loadTileContent(const TileLoadInput& loadInput) {
   if (pTileID == nullptr) {
     // this tile is not marked to be upsampled, so just fail it
     return loadInput.asyncSystem.createResolvedFuture(
-        TileLoadResult::createFailedResult(nullptr));
+        TileLoadResult::createFailedResult(loadInput.pAssetAccessor, nullptr));
   }
 
   // The tile content manager guarantees that the parent tile is already loaded
@@ -43,7 +55,7 @@ RasterOverlayUpsampler::loadTileContent(const TileLoadInput& loadInput) {
   if (!pParentRenderContent) {
     // parent doesn't have mesh, so it's not possible to upsample
     return loadInput.asyncSystem.createResolvedFuture(
-        TileLoadResult::createFailedResult(nullptr));
+        TileLoadResult::createFailedResult(loadInput.pAssetAccessor, nullptr));
   }
 
   size_t index = 0;
@@ -72,16 +84,17 @@ RasterOverlayUpsampler::loadTileContent(const TileLoadInput& loadInput) {
        ellipsoid,
        transform = loadInput.tile.getTransform(),
        textureCoordinateIndex = index,
-       TileID = *pTileID]() mutable {
+       tileID = *pTileID,
+       pAssetAccessor = loadInput.pAssetAccessor]() mutable {
         auto model = RasterOverlayUtilities::upsampleGltfForRasterOverlays(
             parentModel,
-            TileID,
+            tileID,
             false,
             RasterOverlayUtilities::DEFAULT_TEXTURE_COORDINATE_BASE_NAME,
             static_cast<int32_t>(textureCoordinateIndex),
             ellipsoid);
         if (!model) {
-          return TileLoadResult::createFailedResult(nullptr);
+          return TileLoadResult::createFailedResult(pAssetAccessor, nullptr);
         }
 
         // Adopt the glTF up axis from the glTF itself.
@@ -101,6 +114,7 @@ RasterOverlayUpsampler::loadTileContent(const TileLoadInput& loadInput) {
             std::nullopt,
             std::nullopt,
             std::nullopt,
+            nullptr,
             nullptr,
             {},
             TileLoadResultState::Success,
