@@ -1,7 +1,8 @@
-#include "CesiumGltf/KhrTextureTransform.h"
-#include "CesiumUtility/Math.h"
+#include <CesiumGltf/ExtensionKhrTextureTransform.h>
+#include <CesiumGltf/KhrTextureTransform.h>
+#include <CesiumUtility/Math.h>
 
-#include <catch2/catch.hpp>
+#include <doctest/doctest.h>
 
 using namespace CesiumGltf;
 

@@ -1,25 +1,46 @@
-#include "CesiumGltfReader/GltfReader.h"
-
 #include <CesiumAsync/AsyncSystem.h>
+#include <CesiumGltf/Accessor.h>
 #include <CesiumGltf/AccessorView.h>
+#include <CesiumGltf/Buffer.h>
 #include <CesiumGltf/ExtensionBufferViewExtMeshoptCompression.h>
 #include <CesiumGltf/ExtensionCesiumRTC.h>
 #include <CesiumGltf/ExtensionKhrDracoMeshCompression.h>
+#include <CesiumGltf/Image.h>
+#include <CesiumGltf/ImageAsset.h>
+#include <CesiumGltf/Mesh.h>
+#include <CesiumGltf/MeshPrimitive.h>
+#include <CesiumGltf/Model.h>
+#include <CesiumGltf/Node.h>
+#include <CesiumGltfReader/GltfReader.h>
+#include <CesiumJsonReader/JsonReaderOptions.h>
 #include <CesiumNativeTests/SimpleAssetAccessor.h>
+#include <CesiumNativeTests/SimpleAssetRequest.h>
+#include <CesiumNativeTests/SimpleAssetResponse.h>
 #include <CesiumNativeTests/SimpleTaskProcessor.h>
 #include <CesiumNativeTests/readFile.h>
 #include <CesiumNativeTests/waitForFuture.h>
+#include <CesiumUtility/JsonValue.h>
 #include <CesiumUtility/Math.h>
+#include <CesiumUtility/StringHelpers.h>
 
-#include <catch2/catch.hpp>
-#include <glm/vec3.hpp>
-#include <gsl/span>
-#include <rapidjson/reader.h>
+#include <doctest/doctest.h>
+#include <glm/ext/matrix_double4x4.hpp>
+#include <glm/ext/vector_float2.hpp>
+#include <glm/ext/vector_float3.hpp>
+#include <glm/geometric.hpp>
 
+#include <cmath>
+#include <cstddef>
+#include <cstdint>
 #include <filesystem>
-#include <fstream>
 #include <limits>
+#include <map>
+#include <memory>
+#include <span>
 #include <string>
+#include <string_view>
+#include <utility>
+#include <vector>
 
 using namespace CesiumAsync;
 using namespace CesiumGltf;
@@ -74,7 +95,7 @@ TEST_CASE("CesiumGltfReader::GltfReader") {
 
   GltfReader reader;
   GltfReaderResult result = reader.readGltf(
-      gsl::span(reinterpret_cast<const std::byte*>(s.c_str()), s.size()));
+      std::span(reinterpret_cast<const std::byte*>(s.c_str()), s.size()));
   CHECK(result.errors.empty());
   REQUIRE(result.model.has_value());
 
@@ -116,7 +137,7 @@ T getRange(const CesiumGltf::AccessorView<T>& accessorView) {
   T max{std::numeric_limits<float>::lowest()};
   for (int32_t i = 0; i < accessorView.size(); ++i) {
     const T& value = accessorView[i];
-    for (uint32_t j = 0; j < static_cast<uint32_t>(value.length()); ++j) {
+    for (glm::length_t j = 0; j < value.length(); ++j) {
       min[j] = glm::min<float>(min[j], value[j]);
       max[j] = glm::max<float>(max[j], value[j]);
     }
@@ -160,7 +181,7 @@ VertexAttributeRange getVertexAttributeRange(const Model& model) {
 
 template <typename T>
 bool epsilonCompare(const T& v1, const T& v2, double epsilon) {
-  for (uint32_t i = 0; i < static_cast<uint32_t>(v1.length()); ++i) {
+  for (glm::length_t i = 0; i < v1.length(); ++i) {
     if (!CesiumUtility::Math::equalsEpsilon(v1[i], v2[i], epsilon)) {
       return false;
     }
@@ -271,7 +292,7 @@ TEST_CASE("Nested extras deserializes properly") {
 
   GltfReader reader;
   GltfReaderResult result = reader.readGltf(
-      gsl::span(reinterpret_cast<const std::byte*>(s.c_str()), s.size()));
+      std::span(reinterpret_cast<const std::byte*>(s.c_str()), s.size()));
 
   REQUIRE(result.errors.empty());
   REQUIRE(result.model.has_value());
@@ -323,7 +344,7 @@ TEST_CASE("Can deserialize KHR_draco_mesh_compression") {
 
   GltfReader reader;
   GltfReaderResult result = reader.readGltf(
-      gsl::span(reinterpret_cast<const std::byte*>(s.c_str()), s.size()),
+      std::span(reinterpret_cast<const std::byte*>(s.c_str()), s.size()),
       options);
 
   REQUIRE(result.errors.empty());
@@ -351,7 +372,7 @@ TEST_CASE("Can deserialize KHR_draco_mesh_compression") {
       CesiumJsonReader::ExtensionState::JsonOnly);
 
   GltfReaderResult result2 = reader.readGltf(
-      gsl::span(reinterpret_cast<const std::byte*>(s.c_str()), s.size()),
+      std::span(reinterpret_cast<const std::byte*>(s.c_str()), s.size()),
       options);
 
   REQUIRE(result2.errors.empty());
@@ -386,7 +407,7 @@ TEST_CASE("Can deserialize KHR_draco_mesh_compression") {
       CesiumJsonReader::ExtensionState::Disabled);
 
   GltfReaderResult result3 = reader.readGltf(
-      gsl::span(reinterpret_cast<const std::byte*>(s.c_str()), s.size()),
+      std::span(reinterpret_cast<const std::byte*>(s.c_str()), s.size()),
       options);
 
   REQUIRE(result3.errors.empty());
@@ -423,7 +444,7 @@ TEST_CASE("Extensions deserialize to JsonVaue iff "
   GltfReaderOptions options;
   GltfReader reader;
   GltfReaderResult withCustomExtModel = reader.readGltf(
-      gsl::span(reinterpret_cast<const std::byte*>(s.c_str()), s.size()),
+      std::span(reinterpret_cast<const std::byte*>(s.c_str()), s.size()),
       options);
 
   REQUIRE(withCustomExtModel.errors.empty());
@@ -454,7 +475,7 @@ TEST_CASE("Extensions deserialize to JsonVaue iff "
       CesiumJsonReader::ExtensionState::Disabled);
 
   GltfReaderResult withoutCustomExt = reader.readGltf(
-      gsl::span(reinterpret_cast<const std::byte*>(s.c_str()), s.size()),
+      std::span(reinterpret_cast<const std::byte*>(s.c_str()), s.size()),
       options);
 
   auto& zeroExtensions = withoutCustomExt.model->extensions;
@@ -478,7 +499,7 @@ TEST_CASE("Unknown MIME types are handled") {
   GltfReaderOptions options;
   GltfReader reader;
   GltfReaderResult result = reader.readGltf(
-      gsl::span(reinterpret_cast<const std::byte*>(s.c_str()), s.size()),
+      std::span(reinterpret_cast<const std::byte*>(s.c_str()), s.size()),
       options);
 
   // Note: The result.errors will not be empty,
@@ -501,7 +522,7 @@ TEST_CASE("Can parse doubles with no fractions as integers") {
   GltfReaderOptions options;
   GltfReader reader;
   GltfReaderResult result = reader.readGltf(
-      gsl::span(reinterpret_cast<const std::byte*>(s.c_str()), s.size()),
+      std::span(reinterpret_cast<const std::byte*>(s.c_str()), s.size()),
       options);
 
   CHECK(result.warnings.empty());
@@ -521,7 +542,7 @@ TEST_CASE("Can parse doubles with no fractions as integers") {
     }
   )";
   result = reader.readGltf(
-      gsl::span(reinterpret_cast<const std::byte*>(s.c_str()), s.size()),
+      std::span(reinterpret_cast<const std::byte*>(s.c_str()), s.size()),
       options);
   CHECK(!result.warnings.empty());
 }
@@ -552,7 +573,7 @@ TEST_CASE("Can apply RTC CENTER if model uses Cesium RTC extension") {
   GltfReaderOptions options;
   GltfReader reader;
   GltfReaderResult result = reader.readGltf(
-      gsl::span(reinterpret_cast<const std::byte*>(s.c_str()), s.size()),
+      std::span(reinterpret_cast<const std::byte*>(s.c_str()), s.size()),
       options);
   REQUIRE(result.model.has_value());
   Model& model = result.model.value();
@@ -561,67 +582,6 @@ TEST_CASE("Can apply RTC CENTER if model uses Cesium RTC extension") {
   REQUIRE(cesiumRTC);
   std::vector<double> rtcCenter = {6378137.0, 0.0, 0.0};
   CHECK(cesiumRTC->center == rtcCenter);
-}
-
-TEST_CASE("Can correctly interpret mipmaps in KTX2 files") {
-  {
-    // This KTX2 file has a single mip level and no further mip levels should be
-    // generated. `mipPositions` should reflect this single mip level.
-    std::filesystem::path ktx2File = CesiumGltfReader_TEST_DATA_DIR;
-    ktx2File /= "ktx2/kota-onelevel.ktx2";
-    std::vector<std::byte> data = readFile(ktx2File.string());
-    ImageReaderResult imageResult =
-        GltfReader::readImage(data, Ktx2TranscodeTargets{});
-    REQUIRE(imageResult.image.has_value());
-
-    const ImageCesium& image = *imageResult.image;
-    REQUIRE(image.mipPositions.size() == 1);
-    CHECK(image.mipPositions[0].byteOffset == 0);
-    CHECK(image.mipPositions[0].byteSize > 0);
-    CHECK(
-        image.mipPositions[0].byteSize ==
-        size_t(image.width * image.height * image.channels));
-    CHECK(image.mipPositions[0].byteSize == image.pixelData.size());
-  }
-
-  {
-    // This KTX2 file has only a base image but further mip levels can be
-    // generated. This image effectively has no mip levels.
-    std::filesystem::path ktx2File = CesiumGltfReader_TEST_DATA_DIR;
-    ktx2File /= "ktx2/kota-automipmap.ktx2";
-    std::vector<std::byte> data = readFile(ktx2File.string());
-    ImageReaderResult imageResult =
-        GltfReader::readImage(data, Ktx2TranscodeTargets{});
-    REQUIRE(imageResult.image.has_value());
-
-    const ImageCesium& image = *imageResult.image;
-    REQUIRE(image.mipPositions.size() == 0);
-    CHECK(image.pixelData.size() > 0);
-  }
-
-  {
-    // This KTX2 file has a complete mip chain.
-    std::filesystem::path ktx2File = CesiumGltfReader_TEST_DATA_DIR;
-    ktx2File /= "ktx2/kota-mipmaps.ktx2";
-    std::vector<std::byte> data = readFile(ktx2File.string());
-    ImageReaderResult imageResult =
-        GltfReader::readImage(data, Ktx2TranscodeTargets{});
-    REQUIRE(imageResult.image.has_value());
-
-    const ImageCesium& image = *imageResult.image;
-    REQUIRE(image.mipPositions.size() == 9);
-    CHECK(image.mipPositions[0].byteSize > 0);
-    CHECK(
-        image.mipPositions[0].byteSize ==
-        size_t(image.width * image.height * image.channels));
-    CHECK(image.mipPositions[0].byteSize < image.pixelData.size());
-
-    size_t smallerThan = image.mipPositions[0].byteSize;
-    for (size_t i = 1; i < image.mipPositions.size(); ++i) {
-      CHECK(image.mipPositions[i].byteSize < smallerThan);
-      smallerThan = image.mipPositions[i].byteSize;
-    }
-  }
 }
 
 TEST_CASE("Can read unknown properties from a glTF") {
@@ -640,7 +600,7 @@ TEST_CASE("Can read unknown properties from a glTF") {
   reader.getOptions().setCaptureUnknownProperties(true);
 
   GltfReaderResult result = reader.readGltf(
-      gsl::span(reinterpret_cast<const std::byte*>(s.c_str()), s.size()),
+      std::span(reinterpret_cast<const std::byte*>(s.c_str()), s.size()),
       options);
   REQUIRE(result.model.has_value());
 
@@ -670,7 +630,7 @@ TEST_CASE("Ignores unknown properties if requested") {
   reader.getOptions().setCaptureUnknownProperties(false);
 
   GltfReaderResult result = reader.readGltf(
-      gsl::span(reinterpret_cast<const std::byte*>(s.c_str()), s.size()),
+      std::span(reinterpret_cast<const std::byte*>(s.c_str()), s.size()),
       options);
   REQUIRE(result.model.has_value());
   CHECK(result.model->unknownProperties.empty());
@@ -689,7 +649,7 @@ TEST_CASE("Decodes images with data uris") {
 
   REQUIRE(model.images.size() == 1);
 
-  const ImageCesium& image = model.images.front().cesium;
+  const ImageAsset& image = *model.images.front().pAsset;
 
   CHECK(image.width == 256);
   CHECK(image.height == 256);
@@ -718,7 +678,7 @@ TEST_CASE("Decode buffer with data URI whose length does match the buffer's "
       "\"byteLength\": 1");
 
   GltfReader reader;
-  GltfReaderResult result = reader.readGltf(gsl::span<const std::byte>(
+  GltfReaderResult result = reader.readGltf(std::span<const std::byte>(
       reinterpret_cast<const std::byte*>(gltfString.data()),
       gltfString.size()));
 
@@ -750,7 +710,8 @@ TEST_CASE("GltfReader::loadGltf") {
         "application/binary",
         CesiumAsync::HttpHeaders{},
         readFile(entry.path()));
-    std::string url = "file:///" + entry.path().generic_u8string();
+    std::string url = "file:///" + StringHelpers::toStringUtf8(
+                                       entry.path().generic_u8string());
     auto pRequest = std::make_unique<SimpleAssetRequest>(
         "GET",
         url,
@@ -763,12 +724,13 @@ TEST_CASE("GltfReader::loadGltf") {
       std::make_shared<SimpleAssetAccessor>(std::move(mapUrlToRequest));
 
   std::string uri =
-      "file:///" + std::filesystem::directory_entry(
-                       dataDir / "DracoCompressed" / "CesiumMilkTruck.gltf")
-                       .path()
-                       .generic_u8string();
+      "file:///" + StringHelpers::toStringUtf8(
+                       std::filesystem::directory_entry(
+                           dataDir / "DracoCompressed" / "CesiumMilkTruck.gltf")
+                           .path()
+                           .generic_u8string());
 
-  SECTION("loads glTF") {
+  SUBCASE("loads glTF") {
     GltfReader reader{};
     Future<GltfReaderResult> future =
         reader.loadGltf(asyncSystem, uri, {}, pMockAssetAccessor);
@@ -782,9 +744,10 @@ TEST_CASE("GltfReader::loadGltf") {
 
     REQUIRE(result.model->images.size() == 1);
     const CesiumGltf::Image& image = result.model->images[0];
-    CHECK(image.cesium.width == 2048);
-    CHECK(image.cesium.height == 2048);
-    CHECK(image.cesium.pixelData.size() == 2048 * 2048 * 4);
+    CHECK(image.pAsset->width == 2048);
+    CHECK(image.pAsset->height == 2048);
+    CHECK(
+        image.pAsset->pixelData.size() == static_cast<size_t>(2048 * 2048 * 4));
 
     CHECK(!result.model->buffers.empty());
     for (const CesiumGltf::Buffer& buffer : result.model->buffers) {
@@ -792,7 +755,7 @@ TEST_CASE("GltfReader::loadGltf") {
     }
   }
 
-  SECTION(
+  SUBCASE(
       "does not resolve external images when resolveExternalImages is false") {
     GltfReaderOptions options;
     options.resolveExternalImages = false;
@@ -810,7 +773,7 @@ TEST_CASE("GltfReader::loadGltf") {
     REQUIRE(result.model->images.size() == 1);
     const CesiumGltf::Image& image = result.model->images[0];
     CHECK(image.uri.has_value());
-    CHECK(image.cesium.pixelData.empty());
+    CHECK(!image.pAsset);
   }
 }
 
@@ -819,14 +782,14 @@ TEST_CASE("GltfReader::postprocessGltf") {
   GltfReader reader;
   GltfReaderResult readerResult;
 
-  SECTION("returns immediately if there is no model") {
+  SUBCASE("returns immediately if there is no model") {
     reader.postprocessGltf(readerResult, options);
     CHECK(!readerResult.model);
     CHECK(readerResult.errors.empty());
     CHECK(readerResult.warnings.empty());
   }
 
-  SECTION("performs requested post processing") {
+  SUBCASE("performs requested post processing") {
     options.decodeDataUrls = true;
 
     Model& model = readerResult.model.emplace();

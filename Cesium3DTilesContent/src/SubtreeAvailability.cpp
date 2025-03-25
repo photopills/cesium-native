@@ -1,21 +1,32 @@
-#include <Cesium3DTiles/ImplicitTiling.h>
+#include <Cesium3DTiles/Availability.h>
+#include <Cesium3DTiles/Buffer.h>
+#include <Cesium3DTiles/BufferView.h>
 #include <Cesium3DTiles/Subtree.h>
 #include <Cesium3DTilesContent/ImplicitTilingUtilities.h>
 #include <Cesium3DTilesContent/SubtreeAvailability.h>
 #include <Cesium3DTilesReader/SubtreeFileReader.h>
-#include <CesiumAsync/IAssetResponse.h>
+#include <CesiumAsync/AsyncSystem.h>
+#include <CesiumAsync/Future.h>
+#include <CesiumAsync/IAssetAccessor.h>
 #include <CesiumGeometry/OctreeTileID.h>
 #include <CesiumGeometry/QuadtreeTileID.h>
+#include <CesiumJsonReader/JsonReader.h>
 #include <CesiumUtility/Assert.h>
-#include <CesiumUtility/ErrorList.h>
-#include <CesiumUtility/Uri.h>
+#include <CesiumUtility/joinToString.h>
 
-#include <gsl/span>
-#include <rapidjson/document.h>
+#include <spdlog/logger.h>
+#include <spdlog/spdlog.h>
 
+#include <algorithm>
 #include <cstddef>
+#include <cstdint>
+#include <memory>
 #include <optional>
+#include <span>
 #include <string>
+#include <utility>
+#include <variant>
+#include <vector>
 
 using namespace Cesium3DTiles;
 using namespace Cesium3DTilesReader;
@@ -63,7 +74,7 @@ std::optional<SubtreeAvailability::AvailabilityView> parseAvailabilityView(
       if (bufferView.byteLength >= 0 &&
           bufferView.byteOffset + bufferView.byteLength <= bufferSize) {
         return SubtreeAvailability::SubtreeBufferViewAvailability{
-            gsl::span<std::byte>(
+            std::span<std::byte>(
                 data.data() + bufferView.byteOffset,
                 size_t(bufferView.byteLength))};
       }
@@ -415,7 +426,7 @@ void convertConstantAvailabilityToBitstream(
       size_t(buffer.byteLength),
       oldValue ? std::byte(0xFF) : std::byte(0x00));
 
-  gsl::span<std::byte> view(
+  std::span<std::byte> view(
       buffer.cesium.data.data() + start,
       buffer.cesium.data.data() + end);
   availabilityView = SubtreeAvailability::SubtreeBufferViewAvailability{view};

@@ -18,6 +18,28 @@
 
 namespace Cesium3DTilesSelection {
 
+/**
+ * @brief Represents the result of calling \ref
+ * TilesetContentManager::unloadTileContent.
+ */
+enum class UnloadTileContentResult : uint8_t {
+  /**
+   * @brief The tile should remain in the loaded tiles list.
+   */
+  Keep = 0,
+  /**
+   * @brief The tile should be removed from the loaded tiles list.
+   */
+  Remove = 1,
+  /**
+   * @brief The tile should be removed from the loaded tiles list and have its
+   * children cleared.
+   */
+  RemoveAndClearChildren = 3
+};
+
+class TilesetSharedAssetSystem;
+
 class TilesetContentManager
     : public CesiumUtility::ReferenceCountedNonThreadSafe<
           TilesetContentManager> {
@@ -26,7 +48,6 @@ public:
       const TilesetExternals& externals,
       const TilesetOptions& tilesetOptions,
       RasterOverlayCollection&& overlayCollection,
-      std::vector<CesiumAsync::IAssetAccessor::THeader>&& requestHeaders,
       std::unique_ptr<TilesetContentLoader>&& pLoader,
       std::unique_ptr<Tile>&& pRootTile);
 
@@ -85,7 +106,7 @@ public:
       Tile& tile,
       const TilesetOptions& tilesetOptions);
 
-  bool unloadTileContent(Tile& tile);
+  UnloadTileContentResult unloadTileContent(Tile& tile);
 
   void waitUntilIdle();
 
@@ -114,6 +135,9 @@ public:
   const CesiumUtility::Credit* getUserCredit() const noexcept;
 
   const std::vector<CesiumUtility::Credit>& getTilesetCredits() const noexcept;
+
+  const CesiumUtility::IntrusivePointer<TilesetSharedAssetSystem>&
+  getSharedAssetSystem() const noexcept;
 
   int32_t getNumberOfTilesLoading() const noexcept;
 
@@ -166,6 +190,9 @@ private:
   int32_t _tileLoadsInProgress;
   int32_t _loadedTilesCount;
   int64_t _tilesDataUsed;
+
+  // Stores assets that might be shared between tiles.
+  CesiumUtility::IntrusivePointer<TilesetSharedAssetSystem> _pSharedAssetSystem;
 
   CesiumAsync::Promise<void> _destructionCompletePromise;
   CesiumAsync::SharedFuture<void> _destructionCompleteFuture;

@@ -1,14 +1,14 @@
 #pragma once
 
-#include "Future.h"
 #include "Impl/ContinuationFutureType.h"
 #include "Impl/RemoveFuture.h"
 #include "Impl/WithTracing.h"
 #include "Impl/cesium-async++.h"
-#include "Library.h"
-#include "Promise.h"
-#include "ThreadPool.h"
 
+#include <CesiumAsync/Future.h>
+#include <CesiumAsync/Library.h>
+#include <CesiumAsync/Promise.h>
+#include <CesiumAsync/ThreadPool.h>
 #include <CesiumUtility/Tracing.h>
 
 #include <memory>
@@ -345,7 +345,7 @@ private:
                     results.reserve(tasks.size());
 
                     for (auto it = tasks.begin(); it != tasks.end(); ++it) {
-                      results.emplace_back(it->get());
+                      results.emplace_back(std::move(it->get()));
                     }
                     return results;
                   }

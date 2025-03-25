@@ -29,9 +29,10 @@ target_sources(
         ${CESIUM_GEOSPATIAL_PUBLIC_HEADERS}
 )
 
-target_include_directories(
-    CesiumGeospatial
-    SYSTEM PUBLIC
+cesium_target_include_directories(
+    TARGET
+        CesiumGeospatial
+    PUBLIC
         ${CMAKE_CURRENT_LIST_DIR}/include
 )
 
@@ -43,8 +44,6 @@ PUBLIC
 PRIVATE
     s2::s2
 )
-
-target_compile_definitions(CesiumGeospatial PRIVATE GLM_ENABLE_EXPERIMENTAL)
 
 if(CESIUM_DISABLE_DEFAULT_ELLIPSOID)
   target_compile_definitions(CesiumGeospatial PUBLIC CESIUM_DISABLE_DEFAULT_ELLIPSOID=1)

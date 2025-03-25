@@ -19,8 +19,6 @@ target_include_directories(earcut INTERFACE "${EARCUT_HPP_INCLUDE_DIRS}")
 
 
 
-# Allow the catch2 cmake include to be found
-list(APPEND CMAKE_MODULE_PATH "${PACKAGE_BUILD_DIR}/share/Catch2")
 # Modp_b64 doesn't contain a CMake config, so we construct a fake import library here
 add_library(modp_b64::modp_b64 STATIC IMPORTED GLOBAL)
 set_target_properties(modp_b64::modp_b64 PROPERTIES
@@ -48,7 +46,10 @@ set_target_properties(zlib-ng::zlib-ng PROPERTIES
 
 else() # USE_CESIUM_OLD_BUILD
 
-add_compile_options(-Wno-error -Wno-error=unused-but-set-variable -Wno-sign-conversion -Wno-error=shorten-64-to-32 -Wno-error=sign-conversion)
+if (MSVC)
+else()
+	add_compile_options(-Wno-error -Wno-error=unused-but-set-variable -Wno-sign-conversion -Wno-error=shorten-64-to-32 -Wno-error=sign-conversion)
+endif()
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_LIST_DIR}/Catch2/contrib")
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} PARENT_SCOPE)
@@ -56,8 +57,6 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} PARENT_SCOPE)
 if (NOT TARGET Catch2 AND CESIUM_TESTS_ENABLED)
   add_subdirectory(Catch2)
 endif()
-
-add_subdirectory(GSL)
 
 option(KTX_FEATURE_STATIC_LIBRARY "" on)
 option(KTX_FEATURE_TESTS "" off)
@@ -83,12 +82,6 @@ option(WEBP_BUILD_WEBPMUX "" off)
 option(WEBP_NEAR_LOSSLESS "" off)
 option(WEBP_UNICODE "" off)
 add_subdirectory(libwebp)
-
-option(URIPARSER_BUILD_TESTS "" off)
-option(URIPARSER_BUILD_DOCS "" off)
-option(URIPARSER_ENABLE_INSTALL "" off)
-option(URIPARSER_BUILD_TOOLS "" off)
-add_subdirectory(uriparser)
 
 if ((NOT TARGET draco) AND (NOT TARGET draco_static))
     add_subdirectory(draco)
@@ -118,9 +111,12 @@ target_include_directories(
 
 add_subdirectory(asyncplusplus)
 
+add_subdirectory(fmt)
+
 set(SPDLOG_BUILD_TESTING OFF CACHE INTERNAL "Disable SPDLOG Testing")
+set(SPDLOG_FMT_EXTERNAL ON CACHE INTERNAL "Enable External FMT")
 add_subdirectory(spdlog)
-target_compile_definitions(spdlog PUBLIC _SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING)
+target_compile_definitions(spdlog INTERFACE _SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING)
 
 if (NOT TARGET sqlite3)
   add_subdirectory(sqlite3)
@@ -130,32 +126,56 @@ add_subdirectory(modp_b64)
 
 add_subdirectory(expected-lite)
 
+set(ABSL_PROPAGATE_CXX_STD ON)
+add_definitions(-DABSL_MIN_LOG_LEVEL=1)
+add_subdirectory(abseil)
+
 # s2geometry's CMake requires OpenSSL, even though it's not needed for any of
 # the functionality we actually use. So a simple library with enough functionality
 # for our needs is defined here.
-add_library(
-  s2geometry
+add_library(s2geometry
   s2geometry/src/s2/s2cell_id.cc
   s2geometry/src/s2/r2rect.cc
-  s2geometry/src/s2/s2coords.cc
-  s2geometry/src/s2/util/bits/bits.cc
+  s2geometry/src/s2/s2coords.cc 
   s2geometry/src/s2/util/coding/coder.cc
-  s2geometry/src/s2/s2latlng.cc
-  s2geometry/src/s2/third_party/absl/strings/numbers.cc
-  s2geometry/src/s2/third_party/absl/strings/str_cat.cc
+  s2geometry/src/s2/s2latlng.cc    
   s2geometry/src/s2/s1angle.cc
-  s2geometry/src/s2/base/stringprintf.cc
-  s2geometry/src/s2/third_party/absl/base/internal/raw_logging.cc
-  s2geometry/src/s2/third_party/absl/strings/internal/memutil.cc
-  s2geometry/src/s2/third_party/absl/strings/ascii.cc
-  s2geometry/src/s2/third_party/absl/base/internal/throw_delegate.cc
-  s2geometry/src/s2/s1interval.cc
+  s2geometry/src/s2/base/malloc_extension.cc  
+  s2geometry/src/s2/s1interval.cc  
 )
-set_target_properties(s2geometry PROPERTIES
-  CXX_STANDARD 11
-  CXX_STANDARD_REQUIRED YES
+
+target_include_directories(s2geometry SYSTEM PUBLIC 
+    s2geometry/src 
+    abseil
 )
-target_include_directories(s2geometry SYSTEM PUBLIC s2geometry/src)
+
+target_link_libraries(s2geometry PUBLIC    
+    absl::base
+    absl::btree
+    absl::check
+    absl::config
+    absl::core_headers
+    absl::dynamic_annotations
+    absl::endian
+    absl::fixed_array
+    absl::flags
+    absl::flat_hash_map
+    absl::flat_hash_set
+    absl::hash
+    absl::inlined_vector
+    absl::int128
+    absl::log
+    absl::log_severity
+    absl::memory
+    absl::span
+    absl::status
+    absl::str_format
+    absl::strings
+    absl::type_traits
+    absl::utility
+    absl::vlog_is_on  
+)
+
 if (MSVC)
   target_compile_options(s2geometry PRIVATE "/J" "/wd4127" "/wd4996")
   target_compile_definitions(s2geometry PRIVATE NOMINMAX _USE_MATH_DEFINES)
@@ -215,6 +235,14 @@ set(CESIUM_NATIVE_LIBMORTON_INCUDE_DIR "${CMAKE_CURRENT_LIST_DIR}/libmorton/incl
     "Include directory for libmorton libraries"
 )
 
+set(CESIUM_NATIVE_FMT_INCUDE_DIR "${CMAKE_CURRENT_LIST_DIR}/fmt/include" CACHE INTERNAL
+    "Include directory for fmt"
+)
+
+set(CESIUM_NATIVE_SQLITE3_INCUDE_DIR "${CMAKE_CURRENT_LIST_DIR}/sqlite3" CACHE INTERNAL
+    "Include directory for sqlite3"
+)
+
 set(BUILD_TESTING OFF CACHE INTERNAL "Disable libmorton Testing")
 add_subdirectory(libmorton)
 
@@ -269,5 +297,7 @@ set_property(TARGET turbojpeg PROPERTY IMPORTED_LOCATION ${TJ_INSTALL_PREFIX}/li
 set_property(TARGET turbojpeg PROPERTY IMPORTED_LOCATION_DEBUG ${TJ_INSTALL_PREFIX}/lib/${CMAKE_STATIC_LIBRARY_PREFIX}turbojpeg${CMAKE_DEBUG_POSTFIX}${CMAKE_STATIC_LIBRARY_SUFFIX})
 target_include_directories(turbojpeg INTERFACE "${CMAKE_CURRENT_LIST_DIR}/libjpeg-turbo")
 add_dependencies(turbojpeg libjpeg-turbo)
+
+add_subdirectory(ada)
 
 endif()

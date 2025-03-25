@@ -1,5 +1,19 @@
+#include <Cesium3DTilesSelection/TileContent.h>
+#include <Cesium3DTilesSelection/TileLoadResult.h>
 #include <Cesium3DTilesSelection/TilesetContentLoader.h>
-#include <CesiumUtility/Assert.h>
+#include <Cesium3DTilesSelection/TilesetOptions.h>
+#include <CesiumAsync/AsyncSystem.h>
+#include <CesiumAsync/IAssetAccessor.h>
+#include <CesiumAsync/IAssetRequest.h>
+#include <CesiumGeometry/Axis.h>
+#include <CesiumGeospatial/Ellipsoid.h>
+
+#include <spdlog/logger.h>
+
+#include <memory>
+#include <optional>
+#include <utility>
+#include <vector>
 
 namespace Cesium3DTilesSelection {
 TileLoadInput::TileLoadInput(
@@ -19,6 +33,7 @@ TileLoadInput::TileLoadInput(
       ellipsoid(ellipsoid_) {}
 
 TileLoadResult TileLoadResult::createFailedResult(
+    std::shared_ptr<CesiumAsync::IAssetAccessor> pAssetAccessor,
     std::shared_ptr<CesiumAsync::IAssetRequest> pCompletedRequest) {
   return TileLoadResult{
       TileUnknownContent{},
@@ -26,6 +41,7 @@ TileLoadResult TileLoadResult::createFailedResult(
       std::nullopt,
       std::nullopt,
       std::nullopt,
+      std::move(pAssetAccessor),
       std::move(pCompletedRequest),
       {},
       TileLoadResultState::Failed,
@@ -33,6 +49,7 @@ TileLoadResult TileLoadResult::createFailedResult(
 }
 
 TileLoadResult TileLoadResult::createRetryLaterResult(
+    std::shared_ptr<CesiumAsync::IAssetAccessor> pAssetAccessor,
     std::shared_ptr<CesiumAsync::IAssetRequest> pCompletedRequest) {
   return TileLoadResult{
       TileUnknownContent{},
@@ -40,6 +57,7 @@ TileLoadResult TileLoadResult::createRetryLaterResult(
       std::nullopt,
       std::nullopt,
       std::nullopt,
+      std::move(pAssetAccessor),
       std::move(pCompletedRequest),
       {},
       TileLoadResultState::RetryLater,
