@@ -567,6 +567,7 @@ add_subdirectory(Cesium3DTilesWriter)
 add_subdirectory(Cesium3DTilesContent)
 add_subdirectory(CesiumRasterOverlays)
 add_subdirectory(Cesium3DTilesSelection)
+add_subdirectory(CesiumClientCommon)
 add_subdirectory(CesiumIonClient)
 add_subdirectory(CesiumQuantizedMeshTerrain)
 

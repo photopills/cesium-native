@@ -1,7 +1,7 @@
 // Germán: the new file depends on openssl::Crypto method RAND_bytes. We use the old code to avoid
 // having to build and link with openssl::Crytpo on all platforms
 #define _CRT_RAND_S
-#include "fillWithRandomBytes.h"
+#include <CesiumClientCommon/fillWithRandomBytes.h>
 
 // When WINAPI_FAMILY_PARTITION && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_APP)
 // is true, this is a Univeral Windows Platform build. csprng doesn't work on
