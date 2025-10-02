@@ -1,5 +1,94 @@
 # Change Log
 
+### v0.52.0 - 2025-10-01
+
+##### Breaking Changes :mega:
+
+- `RasterOverlayTileProvider::loadTileImage` now receives a const `RasterOverlayTile`.
+- `SharedAssetDepot` now uses a templatized "context" instead of separate `AsyncSystem` and `IAssetAccessor` parameters. It defaults to `SharedAssetContext`.
+- Removed the following from `RasterOverlayTileProvider`:
+  - The constructor overloads that were used to create a placeholder tile provider.
+  - `isPlaceholder`
+  - `getTile`
+  - `getTileDataBytes`
+  - `getNumberOfTilesLoading`
+  - `removeTile`
+  - `loadTile`
+  - `loadTileThrottled`
+- `RasterMappedTo3DTile::mapOverlayToTile` now takes an `ActivatedRasterOverlay` instead of a `RasterOverlayTileProvider`.
+- Removed `getOverlays`, `getTileProviders`, and `getPlaceholderTileProviders` from `RasterOverlayCollection`. Use `getActivatedOverlays` instead.
+- `SharedAssetDepot` now uses a templatized "context" instead of separate `AsyncSystem` and `IAssetAccessor` parameters. It defaults to `SharedAssetContext`.
+- Removed `RasterOverlay::getCredits`, which was not actually used anywhere. Use `RasterOverlayTileProvider::addCredits` instead.
+
+##### Additions :tada:
+
+- Added `GoogleMapTilesRasterOverlay`.
+- Added `invalidate` method to `SharedAssetDepot`.
+- Added `RasterOverlayExternals` class. This is similar to `TilesetExternals` and is a more convenient way to pass around the various external interfaces that raster overlays use.
+- Added `ActivatedRasterOverlay`, encapsulating most of the functionality that was previously found on `RasterOverlayTileProvider`.
+- Added `addTileOverlays` and `updateTileOverlays` to `RasterOverlayCollection`.
+- `RasterOverlayCollection::add` and `remove` now take a pointer to a const `RasterOverlay`.
+- Added `CesiumUtility::TransformIterator`.
+- Added `CesiumUtility::DerivedValue`.
+- Added `RasterOverlayTileProvider::getExternals`.
+- Added new `log` and `format` methods to `ErrorList`.
+- Added `AsyncSystem::enterMainThread`.
+- Added `JsonObjectJsonHandler::ValueType`.
+- Added `trimWhitespace` and `splitOnCharacter` to `StringHelpers`.
+- Added `IonRasterOverlay::setAssetOptions`, providing the ability to supply asset-specific options to Cesium ion when requesting an asset endpoint.
+
+##### Fixes :wrench:
+
+- The Cesium ion token for raster overlays is now automatically refreshed every 55 minutes. Previously, it would refresh on a 401 HTTP status code, which could cause extraneous session usage if the raster overlay ever returned a 401 error for a non-token-related reason.
+- Reverted change to `RasterizedPolygonsOverlay` that could produce crashes with certain tilesets.
+- Fixed a bug where `TilesetHeightQuery` would always sample the WGS84 ellipsoid, even if a different one was supplied.
+- Fixed a build system bug that prevented `libblend2d.a` from being installed for iOS.
+- Fixed a bug when loading terrain where custom HTTP headers were not propagated through all terrain loading requests, preventing authentication tokens and API keys from working correctly with authenticated terrain services.
+- Added a move constructor and assignment operator to `TileProviderAndTile`. This is important to prevent it from inadvertently incrementing/decrementing non-thread-safe reference counts from the wrong thread while being moved.
+- `LoadedTileEnumerator` now provides non-const access to enumerated `Tile` instances, even if the enumerator itself is const.
+
+### v0.51.0 - 2025-09-02
+
+##### Breaking Changes :mega:
+
+- The `getRootTile`, `loadedTiles`, and `forEachLoadedTile` methods on `Tileset` now only provide a const pointer to `Tile` instances, even when called on a non-const `Tileset`. Most modifications to tile instances owned by the tileset would be unsafe.
+- `ViewUpdateResult` now holds pointers to const `Tile` instances.
+- The `slowlyGetCurrentStates` and `slowlyGetPreviousStates` methods of `TreeTraversalState` now return the state map with a raw pointer to a constant node as the key, even if the node pointer type is a smart pointer.
+- `DebugTileStateDatabase::recordTileState` now expects the states to be provided as `std::unordered_map<const Tile*, TileSelectionState>` instead of `std::unordered_map<IntrusivePointer<Tile>, TileSelectionState>`.
+- `VectorRasterizer::drawPolyline` now takes a `std::vector` instead of a `std::span`.
+
+##### Additions :tada:
+
+- Added `element_type` to `IntrusivePointer`, allowing it to be used with `std::pointer_types`.
+- Added implicit conversion of `IntrusivePointer<T>` to `T*`.
+- All properties and extensions from `tileset.json`, except `"root"`, are now parsed into `TilesetMetadata` when a tileset is loaded by `Cesium3DTilesSelection::Tileset`.
+- Added `accessorView` to `PropertyAttributePropertyView` to retrieve the underlying `AccessorView`.
+
+##### Fixes :wrench:
+
+- Fixed a bug in `Tileset::updateViewGroupOffline` that would cause it to get stuck in an endless loop when invoked with no frustums.
+- Fixed a bug with `ColorMode::Random` in `VectorStyle` that caused it to produce different results each time a raster overlay tile was rendered.
+- Fixed a bug in `IonRasterOverlay` that would cause unnecessary extra use of Bing Maps sessions when manually reloading the raster overlay after an expired token was automatically refreshed.
+- Fixed a bug that could lead to a crash when using raster overlays with tilesets that use "external tilesets", such as Google Photorealistic 3D Tiles.
+
+### v0.50.0 - 2025-08-01
+
+##### Breaking Changes :mega:
+
+- The `RasterOverlayTileProvider` and `QuadtreeRasterOverlayTileProvider` constructors now require a `CreditSystem` parameter.
+
+##### Additions :tada:
+
+- Added `GeoJsonDocumentRasterOverlay` for displaying GeoJSON documents as a raster overlay.
+- Improved performance of `RasterizedPolygonsOverlay`, especially when using lots of cartographic polygons at once.
+- Added `ImplicitTilingUtilities::getParentID` to derive the ID of the parent for a given tile ID.
+- `IonRasterOverlay` now automatically handles refreshing the Cesium ion asset token as needed.
+- Added `CesiumIonAssetAccessor`, which is useful for implementing token refresh for Cesium ion assets.
+- Added `refreshTileProviderWithNewKey` method to `BingMapsRasterOverlay`.
+- Added `refreshTileProviderWithNewUrlAndHeaders` method to `TileMapServiceRasterOverlay`.
+- Added `getAsyncDestructionCompleteEvent` method to `RasterOverlayTileProvider`.
+- Added `getCreditSystem` method to `RasterOverlayTileProvider`.
+
 ### v0.49.0 - 2025-07-01
 
 ##### Breaking Changes :mega:

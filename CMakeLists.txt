@@ -62,6 +62,7 @@ endif()
 
 message(STATUS "VCPKG_TRIPLET ${VCPKG_TRIPLET}")
 message(STATUS "VCPKG_TARGET_TRIPLET ${VCPKG_TARGET_TRIPLET}")
+message(STATUS "VCPKG_PLATFORM_TOOLSET_VERSION $ENV{VCPKG_PLATFORM_TOOLSET_VERSION}")
 
 if (NOT VCPKG_OVERLAY_PORTS)
     if (DEFINED ENV{VCPKG_OVERLAY_PORTS})
@@ -97,6 +98,14 @@ set(PACKAGES_PRIVATE
     earcut-hpp cpp-httplib[core] libmorton zstd
 )
 
+# asmjit needed by blend2d on non-iOS platforms (iOS doesn't support JIT)
+if(NOT IOS AND NOT VCPKG_CMAKE_SYSTEM_NAME MATCHES "iOS")
+    list(APPEND PACKAGES_PRIVATE blend2d asmjit)
+else()
+    # Use [core] feature to disable default jit feature.
+    list(APPEND PACKAGES_PRIVATE blend2d[core])
+endif()
+
 if(NOT CESIUM_DISABLE_CURL)
     list(APPEND PACKAGES_PRIVATE curl)
 endif()
@@ -110,7 +119,7 @@ if(CESIUM_USE_EZVCPKG)
     list(APPEND PACKAGES_ALL ${PACKAGES_TEST})
 
     ezvcpkg_fetch(
-        COMMIT dbe35ceb30c688bf72e952ab23778e009a578f18
+        COMMIT 2025.09.17
         PACKAGES ${PACKAGES_ALL}
         # Clean the build trees after building, so that we don't use a ton a disk space on the CI cache
         CLEAN_BUILDTREES
@@ -131,7 +140,7 @@ endif()
 include("cmake/defaults.cmake")
 
 project(cesium-native
-    VERSION 0.48.0
+    VERSION 0.52.0
     LANGUAGES CXX C
 )
 
@@ -166,8 +175,8 @@ set(CESIUM_CLANG_TIDY_USE_THREADS 14 CACHE STRING "Sets the number of threads fo
 
 if(CESIUM_INSTALL_STATIC_LIBS OR CESIUM_INSTALL_HEADERS AND EZVCPKG_PACKAGES_DIR)
     foreach(PACKAGE ${PACKAGES_PUBLIC})
-        string(REGEX REPLACE "\[.*\]" "" PACKAGE ${PACKAGE})
-        set(PACKAGE_DIR ${PACKAGE_BASE_DIR}/${PACKAGE}_${VCPKG_TRIPLET})
+        string(REGEX REPLACE "\\[.*\\]" "" PACKAGE "${PACKAGE}")
+        set(PACKAGE_DIR "${PACKAGE_BASE_DIR}/${PACKAGE}_${VCPKG_TRIPLET}")
         message(DEBUG "PACKAGE_DIR ${PACKAGE_DIR}")
 
         if(CESIUM_INSTALL_HEADERS AND NOT PACKAGE IN_LIST CESIUM_EXCLUDE_INSTALL_HEADERS)
@@ -188,7 +197,8 @@ endif()
 
 if(CESIUM_INSTALL_STATIC_LIBS AND NOT VCPKG_MANIFEST_MODE)
     foreach(PACKAGE ${PACKAGES_PRIVATE})
-        set(PACKAGE_DIR ${PACKAGE_BASE_DIR}/${PACKAGE}_${VCPKG_TRIPLET})
+        string(REGEX REPLACE "\\[.*\\]" "" PACKAGE "${PACKAGE}")
+        set(PACKAGE_DIR "${PACKAGE_BASE_DIR}/${PACKAGE}_${VCPKG_TRIPLET}")
         message(DEBUG "PACKAGE_DIR ${PACKAGE_DIR}")
         if (NOT PACKAGE IN_LIST CESIUM_EXCLUDE_INSTALL_STATIC_LIBS AND EXISTS ${PACKAGE_DIR}/lib)
             install(
@@ -314,6 +324,16 @@ find_package(spdlog CONFIG REQUIRED)
 find_package(tinyxml2 CONFIG REQUIRED)
 find_package(unofficial-sqlite3 CONFIG REQUIRED)
 find_package(WebP CONFIG REQUIRED)
+find_package(blend2d CONFIG REQUIRED)
+# asmjit should not be included with iOS builds as iOS doesn't support JIT compilation.
+if(NOT IOS AND NOT VCPKG_CMAKE_SYSTEM_NAME MATCHES "iOS")
+    find_package(asmjit CONFIG REQUIRED)
+endif()
+
+if(NOT CESIUM_DISABLE_CURL)
+    find_package(CURL REQUIRED)
+endif()
+
 
 if(NOT CESIUM_DISABLE_CURL)
     find_package(CURL REQUIRED)

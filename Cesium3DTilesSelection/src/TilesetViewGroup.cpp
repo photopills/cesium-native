@@ -7,6 +7,7 @@
 #include <Cesium3DTilesSelection/TilesetFrameState.h>
 #include <Cesium3DTilesSelection/TilesetViewGroup.h>
 #include <Cesium3DTilesSelection/ViewUpdateResult.h>
+#include <CesiumRasterOverlays/ActivatedRasterOverlay.h>
 #include <CesiumRasterOverlays/RasterOverlay.h>
 #include <CesiumRasterOverlays/RasterOverlayTile.h>
 #include <CesiumUtility/Assert.h>
@@ -180,15 +181,16 @@ void TilesetViewGroup::finishFrame(
 
     // per-raster overlay credit
     const RasterOverlayCollection& overlayCollection = tileset.getOverlays();
-    for (auto& pTileProvider : overlayCollection.getTileProviders()) {
-      const std::optional<Credit>& overlayCredit = pTileProvider->getCredit();
-      if (overlayCredit) {
-        this->_currentFrameCredits.addCreditReference(overlayCredit.value());
-      }
+    for (auto& pActivated : overlayCollection.getActivatedOverlays()) {
+      if (pActivated->getTileProvider() == nullptr)
+        continue;
+
+      pActivated->getTileProvider()->addCredits(this->_currentFrameCredits);
     }
 
     // Add per-tile credits for tiles selected this frame.
-    for (const Tile::Pointer& pTile : updateResult.tilesToRenderThisFrame) {
+    for (const Tile::ConstPointer& pTile :
+         updateResult.tilesToRenderThisFrame) {
       const std::vector<RasterMappedTo3DTile>& mappedRasterTiles =
           pTile->getMappedRasterTiles();
       // raster overlay tile credits
@@ -231,7 +233,7 @@ bool TilesetViewGroup::hasMoreTilesToLoadInWorkerThread() const {
   return !this->_workerThreadLoadQueue.empty();
 }
 
-Tile* TilesetViewGroup::getNextTileToLoadInWorkerThread() {
+const Tile* TilesetViewGroup::getNextTileToLoadInWorkerThread() {
   CESIUM_ASSERT(!this->_workerThreadLoadQueue.empty());
   if (this->_workerThreadLoadQueue.empty())
     return nullptr;
@@ -245,7 +247,7 @@ bool TilesetViewGroup::hasMoreTilesToLoadInMainThread() const {
   return !this->_mainThreadLoadQueue.empty();
 }
 
-Tile* TilesetViewGroup::getNextTileToLoadInMainThread() {
+const Tile* TilesetViewGroup::getNextTileToLoadInMainThread() {
   CESIUM_ASSERT(!this->_mainThreadLoadQueue.empty());
   if (this->_mainThreadLoadQueue.empty())
     return nullptr;
