@@ -231,7 +231,7 @@ set(CESIUM_NATIVE_STB_INCLUDE_DIR "${CMAKE_CURRENT_LIST_DIR}/stb" CACHE INTERNAL
     "Include directory for STB libraries"
 )
 
-set(CESIUM_NATIVE_LIBMORTON_INCUDE_DIR "${CMAKE_CURRENT_LIST_DIR}/libmorton/include" CACHE INTERNAL
+set(CESIUM_NATIVE_LIBMORTON_INCLUDE_DIR "${CMAKE_CURRENT_LIST_DIR}/libmorton/include" CACHE INTERNAL
     "Include directory for libmorton libraries"
 )
 
@@ -241,6 +241,10 @@ set(CESIUM_NATIVE_FMT_INCUDE_DIR "${CMAKE_CURRENT_LIST_DIR}/fmt/include" CACHE I
 
 set(CESIUM_NATIVE_SQLITE3_INCUDE_DIR "${CMAKE_CURRENT_LIST_DIR}/sqlite3" CACHE INTERNAL
     "Include directory for sqlite3"
+)
+
+set(CESIUM_NATIVE_BLEND2D_INCUDE_DIR "${CMAKE_CURRENT_LIST_DIR}/blend2d/src" CACHE INTERNAL
+    "Include directory for blend2d"
 )
 
 set(BUILD_TESTING OFF CACHE INTERNAL "Disable libmorton Testing")
@@ -299,5 +303,74 @@ target_include_directories(turbojpeg INTERFACE "${CMAKE_CURRENT_LIST_DIR}/libjpe
 add_dependencies(turbojpeg libjpeg-turbo)
 
 add_subdirectory(ada)
+
+# --- 1. Initial Blend2D Configuration ---
+
+# Force a static build without JIT.
+set(BLEND2D_NO_JIT 1 CACHE BOOL "" FORCE)
+set(BLEND2D_STATIC ON CACHE BOOL "" FORCE)
+set(BLEND2D_EMBED OFF CACHE BOOL "" FORCE)
+
+add_subdirectory(blend2d)
+
+# --- 2. Global Patches for the 'blend2d' Target ---
+# These patches are applied always, regardless of the platform.
+
+# Force the -DBL_BUILD_NO_JIT preprocessor definition to ensure that #ifdefs
+# in the headers correctly disable JIT-related code.
+target_compile_definitions(blend2d PRIVATE BL_BUILD_NO_JIT)
+
+# As a safety measure, explicitly remove the JIT source files (.cpp)
+# to prevent any attempt to compile them.
+get_target_property(BLEND2D_SOURCES blend2d SOURCES)
+list(FILTER BLEND2D_SOURCES EXCLUDE REGEX "/pipeline/jit/")
+set_target_properties(blend2d PROPERTIES SOURCES "${BLEND2D_SOURCES}")
+
+
+# --- 3. Platform-Specific Patches ---
+# Adaptations for each operating system or architecture go here.
+
+# For Emscripten: blend2d adds -fno-exceptions, but cesium-native needs them.
+# We remove the conflicting flags to ensure the build is consistent.
+if(EMSCRIPTEN)
+    message(STATUS "Emscripten build detected. Removing conflicting flags from blend2d.")
+    get_target_property(BLEND2D_OPTS blend2d COMPILE_OPTIONS)
+
+    list(REMOVE_ITEM BLEND2D_OPTS "-fno-exceptions")
+    list(REMOVE_ITEM BLEND2D_OPTS "-fno-rtti")
+
+    set_target_properties(blend2d PROPERTIES COMPILE_OPTIONS "${BLEND2D_OPTS}")
+endif()
+
+# For the iOS Simulator: We need a universal library (x86_64 + arm64).
+# Add the SSE flags only for the x86_64 architecture using Xcode-specific properties.
+if(BLEND2D_IOS_SIMULATOR)
+    message(STATUS "iOS Simulator build detected. Applying architecture-specific SSE flags.")
+
+    set(X86_64_ARGS "-msse2 -msse4.2 -mpclmul -DBL_BUILD_OPT_SSE2 -DBL_BUILD_OPT_SSE4_2")
+    set_property(TARGET blend2d APPEND_STRING PROPERTY
+        XCODE_ATTRIBUTE_OTHER_CPLUSPLUSFLAGS[arch=x86_64] " ${X86_64_ARGS}")
+endif()
+
+# For Android ARMv7 builds: this architecture lacks ARMv8 crypto extensions.
+# We must exclude source files that depend on them to prevent runtime crashes.
+if(ANDROID AND CMAKE_ANDROID_ARCH_ABI STREQUAL "armeabi-v7a")
+    message(STATUS "Android ARMv7a build detected. Excluding ARMv8-specific crypto source files from blend2d.")
+
+    get_target_property(BLEND2D_SOURCES blend2d SOURCES)
+    list(FILTER BLEND2D_SOURCES EXCLUDE REGEX "checksum_asimd_crypto\\.cpp$")
+    set_target_properties(blend2d PROPERTIES SOURCES "${BLEND2D_SOURCES}")
+endif()
+
+if(ANDROID AND CMAKE_ANDROID_ARCH_ABI MATCHES "x86")
+    message(STATUS "Android x86 ABI ('${CMAKE_ANDROID_ARCH_ABI}') detected. Manually adding SSE flags to blend2d.")
+
+    target_compile_options(blend2d PRIVATE -msse2 -msse4.2 -mpclmul)
+
+    target_compile_definitions(blend2d PRIVATE
+        BL_BUILD_OPT_SSE2
+        BL_BUILD_OPT_SSE4_2
+    )
+endif()
 
 endif()

@@ -335,10 +335,6 @@ if(NOT CESIUM_DISABLE_CURL)
 endif()
 
 
-if(NOT CESIUM_DISABLE_CURL)
-    find_package(CURL REQUIRED)
-endif()
-
 # Private Library (s2geometry)
 add_subdirectory(extern EXCLUDE_FROM_ALL)
 
@@ -558,6 +554,8 @@ add_subdirectory(extern EXCLUDE_FROM_ALL)
 set_target_properties(spdlog PROPERTIES DEBUG_POSTFIX ${CESIUM_DEBUG_POSTFIX})
 set_target_properties(tinyxml2 PROPERTIES DEBUG_POSTFIX ${CESIUM_DEBUG_POSTFIX})
 
+target_compile_definitions(blend2d PUBLIC BLEND2D_NO_JIT=1)
+
 add_library(s2::s2 ALIAS s2geometry)
 add_library(draco::draco ALIAS ${CESIUM_NATIVE_DRACO_LIBRARY})
 add_library(meshoptimizer::meshoptimizer ALIAS meshoptimizer)
@@ -574,15 +572,17 @@ add_library(zlib-ng::zlib-ng ALIAS zlib)
 add_library(ada::ada ALIAS ada)
 add_library(spdlog::spdlog ALIAS spdlog)
 add_library(spdlog::spdlog_header_only ALIAS spdlog)
+add_library(blend2d::blend2d ALIAS blend2d)
 
 # Add global headers includes needed for several Modules
 include_directories(SYSTEM 
     ${CESIUM_NATIVE_RAPIDJSON_INCLUDE_DIR}
     ${CESIUM_NATIVE_DRACO_INCLUDE_DIR}
     ${CESIUM_NATIVE_STB_INCLUDE_DIR}
-    ${CESIUM_NATIVE_LIBMORTON_INCUDE_DIR}
+    ${CESIUM_NATIVE_LIBMORTON_INCLUDE_DIR}
     ${CESIUM_NATIVE_FMT_INCUDE_DIR}
     ${CESIUM_NATIVE_SQLITE3_INCUDE_DIR}
+    ${CESIUM_NATIVE_BLEND2D_INCUDE_DIR}
 )
 
 # Public Targets
@@ -605,6 +605,7 @@ add_subdirectory(Cesium3DTilesSelection)
 add_subdirectory(CesiumClientCommon)
 add_subdirectory(CesiumIonClient)
 add_subdirectory(CesiumQuantizedMeshTerrain)
+add_subdirectory(CesiumVectorData)
 
 # Private Targets
 if (CESIUM_TESTS_ENABLED)

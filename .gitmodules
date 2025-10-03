@@ -71,3 +71,6 @@
 [submodule "extern/abseil"]
 	path = extern/abseil
 	url = https://github.com/abseil/abseil-cpp.git
+[submodule "extern/blend2d"]
+	path = extern/blend2d
+	url = https://github.com/blend2d/blend2d
