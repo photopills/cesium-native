@@ -371,6 +371,12 @@ if(ANDROID AND CMAKE_ANDROID_ARCH_ABI MATCHES "x86")
         BL_BUILD_OPT_SSE2
         BL_BUILD_OPT_SSE4_2
     )
+
+     # 2. Exclude ARM-specific source files to prevent flag contamination.
+    message(STATUS "Android x86 ABI ('${CMAKE_ANDROID_ARCH_ABI}') detected. Excluding ARM-specific source files.")
+    get_target_property(BLEND2D_SOURCES blend2d SOURCES)
+    list(FILTER BLEND2D_SOURCES EXCLUDE REGEX "_asimd(_crypto)?\\.cpp$")
+    set_target_properties(blend2d PROPERTIES SOURCES "${BLEND2D_SOURCES}")
 endif()
 
 endif()
