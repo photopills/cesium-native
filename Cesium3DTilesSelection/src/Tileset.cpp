@@ -992,8 +992,22 @@ Tileset::TraversalDetails Tileset::_visitTileIfNeeded(
     ++result.culledTilesVisited;
   }
 
-  bool meetsSse =
-      this->_meetsSse(frameState.frustums, tile, distances, cullResult.culled);
+  bool forceRefineROI = false;
+  if (!this->_alwaysRefineRois.empty()) {
+    if (auto maybeRect =
+            estimateGlobeRectangle(tile.getBoundingVolume(), this->getEllipsoid())) {
+      for (const auto& roiRect : this->_alwaysRefineRois) {
+        if (maybeRect->computeIntersection(roiRect).has_value()) {
+          forceRefineROI = true; 
+          break; 
+        }
+      }
+    }
+  }
+
+  bool meetsSse = forceRefineROI
+    ? false
+    : this->_meetsSse(frameState.frustums, tile, distances, cullResult.culled);  
 
   TraversalDetails details = this->_visitTile(
       frameState,
@@ -1557,6 +1571,11 @@ Tileset::TraversalDetails Tileset::createTraversalDetailsForSingleTile(
   traversalDetails.notYetRenderableCount = isRenderable ? 0 : 1;
 
   return traversalDetails;
+}
+
+void Tileset::setAlwaysRefineRois(
+    std::vector<CesiumGeospatial::GlobeRectangle> rois) noexcept {
+  this->_alwaysRefineRois = std::move(rois);
 }
 
 } // namespace Cesium3DTilesSelection
