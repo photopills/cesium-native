@@ -1,3 +1,5 @@
+set(USE_CESIUM_OLD_BUILD ON CACHE BOOL "Uses old cesium build.")
+
 if (NOT USE_CESIUM_OLD_BUILD)
 
 cmake_minimum_required(VERSION 3.15)
@@ -497,7 +499,7 @@ option(BUILD_SHARED_LIBS "Build shared libraries" OFF)
 
 function(configure_cesium_library targetName)
     if (MSVC)
-        target_compile_options(${targetName} PRIVATE /W4 /WX /wd4201 /bigobj)
+        target_compile_options(${targetName} PRIVATE /W4 /wd4201 /bigobj)
     else()
         target_compile_options(${targetName} PRIVATE -Wall -Wextra -Wconversion -Wpedantic -Wshadow -Wsign-conversion)
     endif()
