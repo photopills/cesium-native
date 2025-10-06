@@ -449,6 +449,25 @@ public:
   Tileset(const Tileset& rhs) = delete;
   Tileset& operator=(const Tileset& rhs) = delete;
 
+  /**
+   * @brief Sets regions of interest (ROIs) that should always be refined.
+   *
+   * When a tile’s approximate globe rectangle (derived from its bounding volume)
+   * intersects any ROI in this list, the tile is treated as if it does not meet
+   * the screen-space error (SSE) requirement. This forces the traversal to refine
+   * into the tile’s children and request higher LOD for that area.
+   *
+   * The ROIs are specified as @ref CesiumGeospatial::GlobeRectangle in WGS84
+   * longitude/latitude.
+   *
+   * @param rois Vector of @ref CesiumGeospatial::GlobeRectangle defining the regions
+   *             to always refine. Pass an empty vector to disable ROI-based refinement.
+   *
+   * @note This method is not thread-safe.
+   */
+  void setAlwaysRefineRois(
+      std::vector<CesiumGeospatial::GlobeRectangle> rois) noexcept;
+
 private:
   /**
    * @brief The result of traversing one branch of the tile hierarchy.
@@ -623,6 +642,9 @@ private:
   static TraversalDetails createTraversalDetailsForSingleTile(
       const TilesetFrameState& frameState,
       const Tile& tile);
+
+  // Optional list of always-refined ROI rectangles.   
+  std::vector<CesiumGeospatial::GlobeRectangle> _alwaysRefineRois;
 };
 
 } // namespace Cesium3DTilesSelection
