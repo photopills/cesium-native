@@ -43,9 +43,16 @@ target_link_libraries(CesiumClientCommon
         CesiumUtility
     PRIVATE
         picosha2::picosha2
-        modp_b64::modp_b64
-        httplib::httplib        
+        modp_b64::modp_b64        
 )
+
+if (NOT CESIUM_TARGET_WASM)
+    target_link_libraries(CesiumClientCommon
+        PRIVATE
+            httplib::httplib
+    )
+)
+
 
 if (NOT USE_CESIUM_OLD_BUILD)
   target_link_libraries(CesiumClientCommon
